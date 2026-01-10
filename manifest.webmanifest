@@ -1,7 +1,8 @@
-{
-  "name": "閨匁嶌繝｡繝・そ繝ｼ繧ｸ繧ｯ繝ｪ繝・・",
-  "short_name": "閨匁嶌繧ｯ繝ｪ繝・・",
-  "description": "Google Drive縺ｮ隱ｬ謨吶・繝｡繝・そ繝ｼ繧ｸ髻ｳ螢ｰ繧偵け繝ｪ繝・・縺励※閨槭″繧・☆縺上☆繧輝WA",
+﻿{
+  "name": "\u8056\u66f8\u30e1\u30c3\u30bb\u30fc\u30b8\u30af\u30ea\u30c3\u30d7",
+  "short_name": "\u8056\u66f8\u30af\u30ea\u30c3\u30d7",
+  "description": "Google Drive\u306e\u8aac\u6559\u30fb\u30e1\u30c3\u30bb\u30fc\u30b8\u97f3\u58f0\u3092\u30af\u30ea\u30c3\u30d7\u3057\u3066\u805e\u304d\u3084\u3059\u304f\u3059\u308bPWA",
+  "lang": "ja-JP",
   "theme_color": "#0b1b2b",
   "background_color": "#0b1b2b",
   "display": "standalone",

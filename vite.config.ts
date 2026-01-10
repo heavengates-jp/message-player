@@ -14,6 +14,7 @@ export default defineConfig({
         name: "聖書メッセージクリップ",
         short_name: "聖書クリップ",
         description: "Google Driveの説教・メッセージ音声をクリップして聞きやすくするPWA",
+        lang: "ja-JP",
         theme_color: "#0b1b2b",
         background_color: "#0b1b2b",
         display: "standalone",

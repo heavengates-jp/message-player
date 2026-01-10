@@ -15,6 +15,7 @@ const PlayerPage = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [fileMeta, setFileMeta] = useState<DriveFile | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,7 @@ const PlayerPage = () => {
         if (!cancelled) {
           const url = URL.createObjectURL(blob);
           setAudioUrl(url);
+          setAudioBlob(blob);
         }
 
         const loadedClips = await listClips(userSub, fileId);
@@ -191,6 +193,21 @@ const PlayerPage = () => {
     setClips((prev) => [{ ...newClip, id, fileKey: buildFileKey(userSub, fileId) }, ...prev]);
   };
 
+  const handleDownload = () => {
+    if (!audioBlob) {
+      return;
+    }
+    const url = URL.createObjectURL(audioBlob);
+    const name = fileMeta?.name ?? "audio";
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const updateClipState = (clipId: string, updates: Partial<Clip>) => {
     setClips((prev) =>
       prev.map((clip) => (clip.id === clipId ? { ...clip, ...updates } : clip))
@@ -266,6 +283,11 @@ const PlayerPage = () => {
           </button>
           <button className="ghost" onClick={() => handleSkip(30)}>
             30秒送り
+          </button>
+        </div>
+        <div className="button-row">
+          <button className="secondary" onClick={handleDownload} disabled={!audioBlob}>
+            音声を保存
           </button>
         </div>
         <div className="speed-row">
