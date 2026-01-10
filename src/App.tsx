@@ -60,7 +60,7 @@ const App = () => {
   };
 
   const isPlayer = location.pathname.startsWith("/player/");
-  const title = useMemo(() => (isPlayer ? "再生" : "聖書メッセージクリップ"), [isPlayer]);
+  const title = useMemo(() => (isPlayer ? "再生" : "メッセージプレーヤー"), [isPlayer]);
 
   return (
     <div className="app">
