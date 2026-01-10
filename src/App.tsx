@@ -6,6 +6,7 @@ import { fetchUserInfo } from "./utils/googleApi";
 import HomePage from "./pages/HomePage";
 import PlayerPage from "./pages/PlayerPage";
 import SettingsPage from "./pages/SettingsPage";
+import { APP_VERSION } from "./utils/version";
 
 const useInstallPrompt = () => {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
@@ -111,6 +112,7 @@ const App = () => {
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
+      <div className="app-version">{APP_VERSION}</div>
     </div>
   );
 };

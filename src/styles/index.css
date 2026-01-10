@@ -368,6 +368,19 @@ main {
   margin-bottom: 16px;
 }
 
+.app-version {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  z-index: 1000;
+}
+
 .setting-block {
   margin-bottom: 16px;
 }
