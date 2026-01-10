@@ -1,0 +1,21 @@
+{
+  "name": "閨匁嶌繝｡繝・そ繝ｼ繧ｸ繧ｯ繝ｪ繝・・",
+  "short_name": "閨匁嶌繧ｯ繝ｪ繝・・",
+  "description": "Google Drive縺ｮ隱ｬ謨吶・繝｡繝・そ繝ｼ繧ｸ髻ｳ螢ｰ繧偵け繝ｪ繝・・縺励※閨槭″繧・☆縺上☆繧輝WA",
+  "theme_color": "#0b1b2b",
+  "background_color": "#0b1b2b",
+  "display": "standalone",
+  "start_url": "./",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

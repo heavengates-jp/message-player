@@ -1,0 +1,351 @@
+﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useParams } from "react-router-dom";
+import { useAuthStore } from "../utils/authStore";
+import { fetchAudioBlob, fetchFileMeta } from "../utils/googleApi";
+import { addClip, deleteClip, getHistoryItem, getSettings, listClips, saveHistory, updateClip } from "../utils/data";
+import { buildFileKey } from "../utils/db";
+import type { Clip, DriveFile, HistoryItem, Settings } from "../utils/types";
+
+const speedOptions = [0.75, 1, 1.25, 1.5, 2];
+
+const PlayerPage = () => {
+  const { fileId } = useParams();
+  const { accessToken, userSub } = useAuthStore();
+  const location = useLocation();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [fileMeta, setFileMeta] = useState<DriveFile | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [clips, setClips] = useState<Clip[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [clipSort, setClipSort] = useState<"new" | "time">("new");
+  const [resumeAt, setResumeAt] = useState<number | null>(null);
+
+  const locationState = location.state as { name?: string } | null;
+
+  useEffect(() => {
+    if (!fileId || !accessToken || !userSub) {
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const storedSettings = await getSettings(userSub);
+        if (!cancelled) {
+          setSettings(storedSettings);
+          setSpeed(storedSettings.defaultSpeed || 1);
+        }
+
+        const meta = await fetchFileMeta(accessToken, fileId);
+        if (!cancelled) {
+          setFileMeta(meta);
+        }
+
+        // TODO: 将来的にはRange対応やストリーミング再生へ切り替える。
+        const blob = await fetchAudioBlob(accessToken, fileId);
+        if (!cancelled) {
+          const url = URL.createObjectURL(blob);
+          setAudioUrl(url);
+        }
+
+        const loadedClips = await listClips(userSub, fileId);
+        if (!cancelled) {
+          setClips(loadedClips);
+        }
+
+        const history = await getHistoryItem(userSub, fileId);
+        if (!cancelled && history && storedSettings.autoResume) {
+          setResumeAt(history.lastPosition);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "読み込みに失敗しました");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fileId, accessToken, userSub]);
+
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    audio.playbackRate = speed;
+  }, [speed]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    const onTime = () => setCurrentTime(audio.currentTime);
+    const onDuration = () => {
+      setDuration(audio.duration || 0);
+      if (resumeAt !== null) {
+        audio.currentTime = resumeAt;
+        setCurrentTime(resumeAt);
+        setResumeAt(null);
+      }
+    };
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("loadedmetadata", onDuration);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+
+    return () => {
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("loadedmetadata", onDuration);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+    };
+  }, [audioRef, resumeAt]);
+
+  useEffect(() => {
+    if (!fileId || !userSub || !fileMeta) {
+      return;
+    }
+    const save = async () => {
+      const history: HistoryItem = {
+        id: `${userSub}:${fileId}`,
+        driveFileId: fileId,
+        userSub,
+        name: fileMeta.name ?? locationState?.name ?? "音声ファイル",
+        mimeType: fileMeta.mimeType ?? "audio/*",
+        lastPlayedAt: new Date().toISOString(),
+        lastPosition: currentTime
+      };
+      await saveHistory(history);
+    };
+    const timeout = setTimeout(() => {
+      void save();
+    }, 1200);
+
+    return () => clearTimeout(timeout);
+  }, [currentTime, fileId, userSub, fileMeta, locationState?.name]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleSeek = (value: number) => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    audio.currentTime = value;
+    setCurrentTime(value);
+  };
+
+  const handleSkip = (delta: number) => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + delta));
+  };
+
+  const handleClipAdd = async () => {
+    if (!fileId || !userSub) {
+      return;
+    }
+    const now = new Date().toISOString();
+    const clipId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const newClip = {
+      clipId,
+      driveFileId: fileId,
+      userSub,
+      timeSec: Math.floor(currentTime),
+      title: "",
+      memo: "",
+      createdAt: now,
+      updatedAt: now
+    };
+    const id = await addClip(newClip);
+    setClips((prev) => [{ ...newClip, id, fileKey: buildFileKey(userSub, fileId) }, ...prev]);
+  };
+
+  const updateClipState = (clipId: string, updates: Partial<Clip>) => {
+    setClips((prev) =>
+      prev.map((clip) => (clip.id === clipId ? { ...clip, ...updates } : clip))
+    );
+  };
+
+  const handleClipSave = async (clip: Clip) => {
+    const updated = { ...clip, updatedAt: new Date().toISOString() };
+    updateClipState(clip.id, { updatedAt: updated.updatedAt });
+    await updateClip(updated);
+  };
+
+  const handleClipDelete = async (clipId: string) => {
+    await deleteClip(clipId);
+    setClips((prev) => prev.filter((clip) => clip.id !== clipId));
+  };
+
+  const sortedClips = useMemo(() => {
+    const copy = [...clips];
+    return copy.sort((a, b) =>
+      clipSort === "new" ? b.createdAt.localeCompare(a.createdAt) : a.timeSec - b.timeSec
+    );
+  }, [clips, clipSort]);
+
+  if (!fileId) {
+    return <div className="card">音声ファイルが指定されていません。</div>;
+  }
+
+  if (!accessToken) {
+    return <div className="card">ログイン後に利用できます。</div>;
+  }
+
+  if (loading) {
+    return <div className="card">読み込み中...</div>;
+  }
+
+  if (error) {
+    return <div className="card error">{error}</div>;
+  }
+
+  return (
+    <section className="player">
+      <div className="section">
+        <h2>{fileMeta?.name ?? locationState?.name ?? "音声ファイル"}</h2>
+        <p className="helper">速度や位置は設定でデフォルト値を変更できます。</p>
+      </div>
+
+      <div className="player-card">
+        <audio ref={audioRef} src={audioUrl ?? undefined} preload="metadata" />
+        <div className="time-row">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+        <input
+          className="seek"
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={1}
+          value={currentTime}
+          onChange={(e) => handleSeek(Number(e.target.value))}
+        />
+        <div className="controls">
+          <button className="ghost" onClick={() => handleSkip(-10)}>
+            10秒戻し
+          </button>
+          <button
+            className="primary"
+            onClick={() => (playing ? audioRef.current?.pause() : audioRef.current?.play())}
+            disabled={!audioUrl}
+          >
+            {playing ? "一時停止" : "再生"}
+          </button>
+          <button className="ghost" onClick={() => handleSkip(30)}>
+            30秒送り
+          </button>
+        </div>
+        <div className="speed-row">
+          {speedOptions.map((option) => (
+            <button
+              key={option}
+              className={speed === option ? "chip active" : "chip"}
+              onClick={() => setSpeed(option)}
+            >
+              {option}x
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="sticky-actions">
+        <button className="primary" onClick={handleClipAdd}>
+          + クリップを追加
+        </button>
+        <div className="status">
+          {settings?.autoResume ? "続きから再生: ON" : "続きから再生: OFF"}
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <h3>クリップ一覧</h3>
+          <div className="chip-group">
+            <button
+              className={clipSort === "new" ? "chip active" : "chip"}
+              onClick={() => setClipSort("new")}
+            >
+              新しい順
+            </button>
+            <button
+              className={clipSort === "time" ? "chip active" : "chip"}
+              onClick={() => setClipSort("time")}
+            >
+              時刻順
+            </button>
+          </div>
+        </div>
+
+        {sortedClips.length === 0 && <div className="card">まだクリップがありません。</div>}
+
+        <div className="clip-grid">
+          {sortedClips.map((clip) => (
+            <div className="clip-card" key={clip.id}>
+              <div className="clip-header">
+                <button className="chip" onClick={() => handleSeek(clip.timeSec)}>
+                  {formatTime(clip.timeSec)} に移動
+                </button>
+                <button className="ghost small" onClick={() => handleClipDelete(clip.id)}>
+                  削除
+                </button>
+              </div>
+              <input
+                className="clip-title"
+                placeholder="タイトル（後から入力OK）"
+                value={clip.title}
+                onChange={(e) => updateClipState(clip.id, { title: e.target.value })}
+              />
+              <textarea
+                className="clip-memo"
+                placeholder="メモ"
+                value={clip.memo}
+                onChange={(e) => updateClipState(clip.id, { memo: e.target.value })}
+              />
+              <div className="clip-footer">
+                <span className="clip-date">更新 {new Date(clip.updatedAt).toLocaleString("ja-JP")}</span>
+                <button className="secondary" onClick={() => handleClipSave(clip)}>
+                  保存
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default PlayerPage;
