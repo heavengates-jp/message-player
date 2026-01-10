@@ -6,7 +6,8 @@
   "theme_color": "#0b1b2b",
   "background_color": "#0b1b2b",
   "display": "standalone",
-  "start_url": "./",
+  "start_url": "/message-player/",
+  "scope": "/message-player/",
   "icons": [
     {
       "src": "icons/icon-192.png",
