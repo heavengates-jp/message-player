@@ -255,9 +255,29 @@ const PlayerPage = () => {
     if (!audio) {
       return;
     }
-    const onTime = () => setCurrentTime(audio.currentTime);
+    const getDurationValue = () => {
+      const raw = audio.duration;
+      if (Number.isFinite(raw) && raw > 0) {
+        return raw;
+      }
+      if (audio.seekable && audio.seekable.length > 0) {
+        const end = audio.seekable.end(audio.seekable.length - 1);
+        if (Number.isFinite(end) && end > 0) {
+          return end;
+        }
+      }
+      return 0;
+    };
+    const onTime = () => {
+      setCurrentTime(audio.currentTime);
+      const nextDuration = getDurationValue();
+      if (nextDuration > 0) {
+        setDuration(nextDuration);
+      }
+    };
     const onDuration = () => {
-      setDuration(audio.duration || 0);
+      const nextDuration = getDurationValue();
+      setDuration(nextDuration);
       if (resumeAt !== null) {
         audio.currentTime = resumeAt;
         setCurrentTime(resumeAt);
@@ -265,8 +285,9 @@ const PlayerPage = () => {
       }
     };
     const onDurationChange = () => {
-      if (!Number.isNaN(audio.duration)) {
-        setDuration(audio.duration || 0);
+      const nextDuration = getDurationValue();
+      if (nextDuration > 0) {
+        setDuration(nextDuration);
       }
     };
     const onError = () => {
@@ -277,6 +298,8 @@ const PlayerPage = () => {
 
     audio.addEventListener("timeupdate", onTime);
     audio.addEventListener("loadedmetadata", onDuration);
+    audio.addEventListener("loadeddata", onDuration);
+    audio.addEventListener("canplay", onDuration);
     audio.addEventListener("durationchange", onDurationChange);
     audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
@@ -285,6 +308,8 @@ const PlayerPage = () => {
     return () => {
       audio.removeEventListener("timeupdate", onTime);
       audio.removeEventListener("loadedmetadata", onDuration);
+      audio.removeEventListener("loadeddata", onDuration);
+      audio.removeEventListener("canplay", onDuration);
       audio.removeEventListener("durationchange", onDurationChange);
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
