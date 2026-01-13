@@ -1,5 +1,5 @@
 ﻿import { dbPromise, buildClipId, buildFileKey } from "./db";
-import type { Clip, HistoryItem, Settings } from "./types";
+import type { Clip, HistoryItem, LocalFile, Settings } from "./types";
 
 export const defaultSettings = (userSub: string): Settings => ({
   userSub,
@@ -57,4 +57,14 @@ export const getHistoryItem = async (userSub: string, driveFileId: string) => {
   const db = await dbPromise;
   const id = buildFileKey(userSub, driveFileId);
   return await db.get("history", id);
+};
+
+export const saveLocalFile = async (file: LocalFile) => {
+  const db = await dbPromise;
+  await db.put("localFiles", file);
+};
+
+export const getLocalFile = async (id: string) => {
+  const db = await dbPromise;
+  return await db.get("localFiles", id);
 };

@@ -186,6 +186,21 @@ main {
   color: #fff;
 }
 
+.file-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .ghost {
   background: transparent;
   color: var(--text);

@@ -29,6 +29,14 @@ export type HistoryItem = {
   lastPosition: number;
 };
 
+export type LocalFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  blob: Blob;
+  updatedAt: string;
+};
+
 export type Settings = {
   userSub: string;
   autoResume: boolean;

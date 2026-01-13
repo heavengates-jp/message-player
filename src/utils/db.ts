@@ -1,5 +1,5 @@
 ﻿import { openDB, DBSchema } from "idb";
-import type { Clip, HistoryItem, Settings } from "./types";
+import type { Clip, HistoryItem, LocalFile, Settings } from "./types";
 
 interface ClipDB extends DBSchema {
   clips: {
@@ -16,17 +16,26 @@ interface ClipDB extends DBSchema {
     key: string;
     value: Settings;
   };
+  localFiles: {
+    key: string;
+    value: LocalFile;
+  };
 }
 
-export const dbPromise = openDB<ClipDB>("seisho-clips", 1, {
-  upgrade(db) {
-    const clipStore = db.createObjectStore("clips", { keyPath: "id" });
-    clipStore.createIndex("by-file", "fileKey");
+export const dbPromise = openDB<ClipDB>("seisho-clips", 2, {
+  upgrade(db, oldVersion) {
+    if (oldVersion < 1) {
+      const clipStore = db.createObjectStore("clips", { keyPath: "id" });
+      clipStore.createIndex("by-file", "fileKey");
 
-    const historyStore = db.createObjectStore("history", { keyPath: "id" });
-    historyStore.createIndex("by-user", "userSub");
+      const historyStore = db.createObjectStore("history", { keyPath: "id" });
+      historyStore.createIndex("by-user", "userSub");
 
-    db.createObjectStore("settings", { keyPath: "userSub" });
+      db.createObjectStore("settings", { keyPath: "userSub" });
+    }
+    if (oldVersion < 2) {
+      db.createObjectStore("localFiles", { keyPath: "id" });
+    }
   }
 });
 

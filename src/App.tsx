@@ -114,7 +114,12 @@ const App = () => {
       {!accessToken && (
         <section className="auth-panel">
           <p>Google Driveにアクセスして音声を選択するため、Googleログインが必要です。</p>
-          <button className="primary" onClick={requestToken} disabled={!ready}>
+          <button
+            className="primary"
+            onClick={requestToken}
+            onTouchEnd={requestToken}
+            disabled={!ready}
+          >
             {loginLabel()}
           </button>
           {(missingClient || error) && (

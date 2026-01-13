@@ -15,7 +15,6 @@ const HomePage = () => {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
-  const [pendingLocalId, setPendingLocalId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -55,8 +54,7 @@ const HomePage = () => {
       .finally(() => setLoadingFiles(false));
   };
 
-  const handleLocalOpen = (localId?: string) => {
-    setPendingLocalId(localId ?? null);
+  const handleLocalOpen = () => {
     fileInputRef.current?.click();
   };
 
@@ -70,7 +68,6 @@ const HomePage = () => {
     navigate(`/player/${localId}`, {
       state: { name: file.name, blobUrl, mimeType: file.type, file }
     });
-    setPendingLocalId(null);
     event.target.value = "";
   };
 
@@ -85,17 +82,17 @@ const HomePage = () => {
           <button className="ghost" onClick={handleList} disabled={!accessToken}>
             一覧を取得
           </button>
-          <button className="secondary" onClick={() => handleLocalOpen()}>
+          <label className="secondary file-label">
             ローカルから開く
-          </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={handleLocalChange}
+              className="file-input"
+            />
+          </label>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="audio/*"
-          onChange={handleLocalChange}
-          style={{ display: "none" }}
-        />
         <p className="helper">
           Pickerが使えない環境では「一覧を取得」でDrive内の音声一覧を表示します。
         </p>
@@ -150,13 +147,13 @@ const HomePage = () => {
                     className="list-item"
                     onClick={() =>
                       isLocal
-                        ? handleLocalOpen(item.driveFileId)
+                        ? navigate(`/player/${item.driveFileId}`)
                         : navigate(`/player/${item.driveFileId}`, { state: { name: item.name } })
                     }
                   >
                     <span className="list-title">
                       {item.name}
-                      {isLocal ? "（ローカル: 再選択）" : ""}
+                      {isLocal ? "（ローカル）" : ""}
                     </span>
                     <span className="list-sub">
                       最終再生 {new Date(item.lastPlayedAt).toLocaleString("ja-JP")}

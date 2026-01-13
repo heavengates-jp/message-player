@@ -2,7 +2,17 @@
 import { useLocation, useParams } from "react-router-dom";
 import { useAuthStore } from "../utils/authStore";
 import { fetchAudioBlob, fetchFileMeta } from "../utils/googleApi";
-import { addClip, deleteClip, getHistoryItem, getSettings, listClips, saveHistory, updateClip } from "../utils/data";
+import {
+  addClip,
+  deleteClip,
+  getHistoryItem,
+  getLocalFile,
+  getSettings,
+  listClips,
+  saveHistory,
+  saveLocalFile,
+  updateClip
+} from "../utils/data";
 import { buildFileKey } from "../utils/db";
 import type { Clip, DriveFile, HistoryItem, Settings } from "../utils/types";
 
@@ -56,21 +66,49 @@ const PlayerPage = () => {
             setSettings(storedSettings);
             setSpeed(storedSettings.defaultSpeed || 1);
           }
-          if (!locationState?.blobUrl) {
+
+          let localBlob = locationState?.file ?? null;
+          let localName = locationState?.name ?? "ローカル音声";
+          let localMime = locationState?.mimeType ?? "audio/*";
+          let localUrl = locationState?.blobUrl ?? null;
+
+          if (!localBlob && fileId) {
+            const storedFile = await getLocalFile(fileId);
+            if (storedFile) {
+              localBlob = storedFile.blob;
+              localName = storedFile.name;
+              localMime = storedFile.mimeType;
+              localUrl = URL.createObjectURL(storedFile.blob);
+            }
+          }
+
+          if (!localUrl) {
             if (!cancelled) {
               setError("ローカル音声は再選択が必要です。ホームから選び直してください。");
             }
             return;
           }
+
           if (!cancelled) {
             setFileMeta({
               id: fileId,
-              name: locationState.name ?? "ローカル音声",
-              mimeType: locationState.mimeType ?? "audio/*"
+              name: localName,
+              mimeType: localMime
             });
-            setAudioUrl(locationState.blobUrl);
-            setAudioBlob(locationState.file ?? null);
+            setAudioUrl(localUrl);
+            setAudioBlob(localBlob);
           }
+
+          if (localBlob && fileId) {
+            await saveLocalFile({
+              id: fileId,
+              name: localName,
+              mimeType: localMime,
+              blob: localBlob,
+              updatedAt: new Date().toISOString()
+            });
+          }
+
           const loadedClips = await listClips(effectiveUserSub, fileId);
           if (!cancelled) {
             setClips(loadedClips);
