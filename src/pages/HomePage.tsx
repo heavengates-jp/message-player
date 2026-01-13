@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../utils/authStore";
 import { listAudioFiles } from "../utils/googleApi";
 import { useGooglePicker } from "../utils/googlePicker";
-import { deleteHistoryItem, deleteLocalFile, listHistory } from "../utils/data";
+import { deleteHistoryItem, deleteLocalFile, getLocalFile, listHistory } from "../utils/data";
 import type { DriveFile, HistoryItem } from "../utils/types";
 
 const HomePage = () => {
@@ -16,6 +16,7 @@ const HomePage = () => {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
   const [editMode, setEditMode] = useState(false);
+  const [offlineIds, setOfflineIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isIOS =
     typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent);
@@ -27,13 +28,24 @@ const HomePage = () => {
 
   useEffect(() => {
     const historyUser = userSub ?? "local";
-    listHistory(historyUser).then((items) => {
+    listHistory(historyUser).then(async (items) => {
       const sorted = [...items].sort((a, b) =>
         sortMode === "recent"
           ? b.lastPlayedAt.localeCompare(a.lastPlayedAt)
           : a.name.localeCompare(b.name)
       );
       setHistoryItems(sorted);
+      const offlineChecks = await Promise.all(
+        sorted.map(async (item) => {
+          if (item.driveFileId.startsWith("local-")) {
+            return null;
+          }
+          const stored = await getLocalFile(item.driveFileId);
+          return stored ? item.driveFileId : null;
+        })
+      );
+      const nextOffline = new Set(offlineChecks.filter(Boolean) as string[]);
+      setOfflineIds(nextOffline);
     });
   }, [userSub, sortMode]);
 
@@ -169,6 +181,7 @@ const HomePage = () => {
           <ul className="list">
             {historyItems.map((item) => {
               const isLocal = item.driveFileId.startsWith("local-");
+              const isOffline = offlineIds.has(item.driveFileId);
               return (
                 <li key={item.id}>
                   <button
@@ -186,6 +199,7 @@ const HomePage = () => {
                       <span className="list-title">
                         {item.name}
                         {isLocal ? "（ローカル）" : ""}
+                        {!isLocal && isOffline ? "（オフライン）" : ""}
                       </span>
                       {editMode && (
                         <button
