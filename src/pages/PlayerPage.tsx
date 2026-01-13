@@ -26,6 +26,26 @@ type LocalState = {
   file?: File;
 };
 
+const getDurationValue = (audio: HTMLAudioElement) => {
+  const raw = audio.duration;
+  if (Number.isFinite(raw) && raw > 0) {
+    return raw;
+  }
+  if (audio.seekable && audio.seekable.length > 0) {
+    const end = audio.seekable.end(audio.seekable.length - 1);
+    if (Number.isFinite(end) && end > 0) {
+      return end;
+    }
+  }
+  if (audio.buffered && audio.buffered.length > 0) {
+    const end = audio.buffered.end(audio.buffered.length - 1);
+    if (Number.isFinite(end) && end > 0) {
+      return end;
+    }
+  }
+  return 0;
+};
+
 const PlayerPage = () => {
   const { fileId } = useParams();
   const { accessToken, userSub } = useAuthStore();
@@ -255,28 +275,15 @@ const PlayerPage = () => {
     if (!audio) {
       return;
     }
-    const getDurationValue = () => {
-      const raw = audio.duration;
-      if (Number.isFinite(raw) && raw > 0) {
-        return raw;
-      }
-      if (audio.seekable && audio.seekable.length > 0) {
-        const end = audio.seekable.end(audio.seekable.length - 1);
-        if (Number.isFinite(end) && end > 0) {
-          return end;
-        }
-      }
-      return 0;
-    };
     const onTime = () => {
       setCurrentTime(audio.currentTime);
-      const nextDuration = getDurationValue();
+      const nextDuration = getDurationValue(audio);
       if (nextDuration > 0) {
         setDuration(nextDuration);
       }
     };
     const onDuration = () => {
-      const nextDuration = getDurationValue();
+      const nextDuration = getDurationValue(audio);
       setDuration(nextDuration);
       if (resumeAt !== null) {
         audio.currentTime = resumeAt;
@@ -285,7 +292,7 @@ const PlayerPage = () => {
       }
     };
     const onDurationChange = () => {
-      const nextDuration = getDurationValue();
+      const nextDuration = getDurationValue(audio);
       if (nextDuration > 0) {
         setDuration(nextDuration);
       }
@@ -316,6 +323,27 @@ const PlayerPage = () => {
       audio.removeEventListener("pause", onPause);
     };
   }, [audioRef, resumeAt]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) {
+      return;
+    }
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      setCurrentTime(audio.currentTime || 0);
+      const nextDuration = getDurationValue(audio);
+      if (nextDuration > 0) {
+        setDuration(nextDuration);
+        window.clearInterval(timer);
+      } else if (ticks >= 20) {
+        window.clearInterval(timer);
+      }
+    }, 500);
+
+    return () => window.clearInterval(timer);
+  }, [audioUrl]);
 
   useEffect(() => {
     if (!fileId || !effectiveUserSub || !fileMeta) {
