@@ -8,6 +8,13 @@ import type { Clip, DriveFile, HistoryItem, Settings } from "../utils/types";
 
 const speedOptions = [0.75, 1, 1.25, 1.5, 2];
 
+type LocalState = {
+  name?: string;
+  blobUrl?: string;
+  mimeType?: string;
+  file?: File;
+};
+
 const PlayerPage = () => {
   const { fileId } = useParams();
   const { accessToken, userSub } = useAuthStore();
@@ -27,10 +34,12 @@ const PlayerPage = () => {
   const [clipSort, setClipSort] = useState<"new" | "time">("new");
   const [resumeAt, setResumeAt] = useState<number | null>(null);
 
-  const locationState = location.state as { name?: string } | null;
+  const locationState = location.state as LocalState | null;
+  const isLocal = Boolean(fileId?.startsWith("local-"));
+  const effectiveUserSub = userSub ?? (isLocal ? "local" : null);
 
   useEffect(() => {
-    if (!fileId || !accessToken || !userSub) {
+    if (!fileId) {
       return;
     }
     let cancelled = false;
@@ -38,7 +47,42 @@ const PlayerPage = () => {
       setLoading(true);
       setError(null);
       try {
-        const storedSettings = await getSettings(userSub);
+        if (isLocal) {
+          if (!effectiveUserSub) {
+            return;
+          }
+          const storedSettings = await getSettings(effectiveUserSub);
+          if (!cancelled) {
+            setSettings(storedSettings);
+            setSpeed(storedSettings.defaultSpeed || 1);
+          }
+          if (!locationState?.blobUrl) {
+            if (!cancelled) {
+              setError("ローカル音声は再選択が必要です。ホームから選び直してください。");
+            }
+            return;
+          }
+          if (!cancelled) {
+            setFileMeta({
+              id: fileId,
+              name: locationState.name ?? "ローカル音声",
+              mimeType: locationState.mimeType ?? "audio/*"
+            });
+            setAudioUrl(locationState.blobUrl);
+            setAudioBlob(locationState.file ?? null);
+          }
+          const loadedClips = await listClips(effectiveUserSub, fileId);
+          if (!cancelled) {
+            setClips(loadedClips);
+          }
+          return;
+        }
+
+        if (!accessToken || !effectiveUserSub) {
+          return;
+        }
+
+        const storedSettings = await getSettings(effectiveUserSub);
         if (!cancelled) {
           setSettings(storedSettings);
           setSpeed(storedSettings.defaultSpeed || 1);
@@ -57,12 +101,12 @@ const PlayerPage = () => {
           setAudioBlob(blob);
         }
 
-        const loadedClips = await listClips(userSub, fileId);
+        const loadedClips = await listClips(effectiveUserSub, fileId);
         if (!cancelled) {
           setClips(loadedClips);
         }
 
-        const history = await getHistoryItem(userSub, fileId);
+        const history = await getHistoryItem(effectiveUserSub, fileId);
         if (!cancelled && history && storedSettings.autoResume) {
           setResumeAt(history.lastPosition);
         }
@@ -79,7 +123,7 @@ const PlayerPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [fileId, accessToken, userSub]);
+  }, [fileId, accessToken, effectiveUserSub, isLocal, locationState?.blobUrl, locationState?.name, locationState?.mimeType]);
 
   useEffect(() => {
     return () => {
@@ -128,14 +172,14 @@ const PlayerPage = () => {
   }, [audioRef, resumeAt]);
 
   useEffect(() => {
-    if (!fileId || !userSub || !fileMeta) {
+    if (isLocal || !fileId || !effectiveUserSub || !fileMeta) {
       return;
     }
     const save = async () => {
       const history: HistoryItem = {
-        id: `${userSub}:${fileId}`,
+        id: `${effectiveUserSub}:${fileId}`,
         driveFileId: fileId,
-        userSub,
+        userSub: effectiveUserSub,
         name: fileMeta.name ?? locationState?.name ?? "音声ファイル",
         mimeType: fileMeta.mimeType ?? "audio/*",
         lastPlayedAt: new Date().toISOString(),
@@ -148,7 +192,7 @@ const PlayerPage = () => {
     }, 1200);
 
     return () => clearTimeout(timeout);
-  }, [currentTime, fileId, userSub, fileMeta, locationState?.name]);
+  }, [currentTime, fileId, effectiveUserSub, fileMeta, locationState?.name, isLocal]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -174,7 +218,7 @@ const PlayerPage = () => {
   };
 
   const handleClipAdd = async () => {
-    if (!fileId || !userSub) {
+    if (!fileId || !effectiveUserSub) {
       return;
     }
     const now = new Date().toISOString();
@@ -182,7 +226,7 @@ const PlayerPage = () => {
     const newClip = {
       clipId,
       driveFileId: fileId,
-      userSub,
+      userSub: effectiveUserSub,
       timeSec: Math.floor(currentTime),
       title: "",
       memo: "",
@@ -190,22 +234,7 @@ const PlayerPage = () => {
       updatedAt: now
     };
     const id = await addClip(newClip);
-    setClips((prev) => [{ ...newClip, id, fileKey: buildFileKey(userSub, fileId) }, ...prev]);
-  };
-
-  const handleDownload = () => {
-    if (!audioBlob) {
-      return;
-    }
-    const url = URL.createObjectURL(audioBlob);
-    const name = fileMeta?.name ?? "audio";
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    setClips((prev) => [{ ...newClip, id, fileKey: buildFileKey(effectiveUserSub, fileId) }, ...prev]);
   };
 
   const updateClipState = (clipId: string, updates: Partial<Clip>) => {
@@ -225,6 +254,21 @@ const PlayerPage = () => {
     setClips((prev) => prev.filter((clip) => clip.id !== clipId));
   };
 
+  const handleDownload = () => {
+    if (!audioBlob) {
+      return;
+    }
+    const url = URL.createObjectURL(audioBlob);
+    const name = fileMeta?.name ?? "audio";
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const sortedClips = useMemo(() => {
     const copy = [...clips];
     return copy.sort((a, b) =>
@@ -236,7 +280,7 @@ const PlayerPage = () => {
     return <div className="card">音声ファイルが指定されていません。</div>;
   }
 
-  if (!accessToken) {
+  if (!accessToken && !isLocal) {
     return <div className="card">ログイン後に利用できます。</div>;
   }
 

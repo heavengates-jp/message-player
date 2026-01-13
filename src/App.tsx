@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { useGoogleAuth } from "./utils/googleAuth";
 import { useAuthStore } from "./utils/authStore";
@@ -22,11 +22,12 @@ const useInstallPrompt = () => {
 };
 
 const App = () => {
-  const { ready, requestToken } = useGoogleAuth();
+  const { ready, requestToken, requestTokenSilent } = useGoogleAuth();
   const { accessToken, userSub, userName, setUser } = useAuthStore();
   const [online, setOnline] = useState(navigator.onLine);
   const installPrompt = useInstallPrompt();
   const location = useLocation();
+  const silentTried = useRef(false);
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -51,6 +52,14 @@ const App = () => {
         // user info fetch is best-effort
       });
   }, [accessToken, userSub, setUser]);
+
+  useEffect(() => {
+    if (!ready || accessToken || silentTried.current) {
+      return;
+    }
+    silentTried.current = true;
+    requestTokenSilent();
+  }, [ready, accessToken, requestTokenSilent]);
 
   const canInstall = Boolean(installPrompt);
   const handleInstall = async () => {

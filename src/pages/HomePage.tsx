@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../utils/authStore";
 import { listAudioFiles } from "../utils/googleApi";
@@ -14,12 +15,11 @@ const HomePage = () => {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!userSub) {
-      return;
-    }
-    listHistory(userSub).then((items) => {
+    const historyUser = userSub ?? "local";
+    listHistory(historyUser).then((items) => {
       const sorted = [...items].sort((a, b) =>
         sortMode === "recent"
           ? b.lastPlayedAt.localeCompare(a.lastPlayedAt)
@@ -54,6 +54,23 @@ const HomePage = () => {
       .finally(() => setLoadingFiles(false));
   };
 
+  const handleLocalOpen = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleLocalChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const blobUrl = URL.createObjectURL(file);
+    const localId = `local-${file.lastModified}-${file.size}-${encodeURIComponent(file.name)}`;
+    navigate(`/player/${localId}`, {
+      state: { name: file.name, blobUrl, mimeType: file.type, file }
+    });
+    event.target.value = "";
+  };
+
   return (
     <section className="home">
       <div className="section">
@@ -65,7 +82,17 @@ const HomePage = () => {
           <button className="ghost" onClick={handleList} disabled={!accessToken}>
             一覧を取得
           </button>
+          <button className="secondary" onClick={handleLocalOpen}>
+            ローカルから開く
+          </button>
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/*"
+          onChange={handleLocalChange}
+          style={{ display: "none" }}
+        />
         <p className="helper">
           Pickerが使えない環境では「一覧を取得」でDrive内の音声一覧を表示します。
         </p>

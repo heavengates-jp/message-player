@@ -39,15 +39,16 @@ export const useGoogleAuth = () => {
     };
   }, [tokenClient, setToken, clear]);
 
-  const requestToken = () => {
+  const requestToken = (prompt: "consent" | "" = "consent") => {
     if (!tokenClient) {
       return;
     }
-    tokenClient.requestAccessToken({ prompt: "consent" });
+    tokenClient.requestAccessToken({ prompt });
   };
 
   return {
     ready: Boolean(loaded && CLIENT_ID && window.google?.accounts?.oauth2),
-    requestToken
+    requestToken,
+    requestTokenSilent: () => requestToken("")
   };
 };
