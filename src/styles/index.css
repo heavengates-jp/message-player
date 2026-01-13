@@ -201,6 +201,17 @@ main {
   cursor: pointer;
 }
 
+.file-input-ios {
+  appearance: none;
+  border: none;
+  background: var(--accent-2);
+  color: #fff;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .ghost {
   background: transparent;
   color: var(--text);

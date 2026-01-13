@@ -16,6 +16,8 @@ const HomePage = () => {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isIOS =
+    typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent);
 
   useEffect(() => {
     const historyUser = userSub ?? "local";
@@ -54,10 +56,6 @@ const HomePage = () => {
       .finally(() => setLoadingFiles(false));
   };
 
-  const handleLocalOpen = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleLocalChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -82,19 +80,31 @@ const HomePage = () => {
           <button className="ghost" onClick={handleList} disabled={!accessToken}>
             一覧を取得
           </button>
-          <label className="secondary file-label">
-            ローカルから開く
+          {isIOS ? (
             <input
               ref={fileInputRef}
               type="file"
               accept="audio/*"
               onChange={handleLocalChange}
-              className="file-input"
+              className="file-input-ios"
+              aria-label="ローカルから開く"
             />
-          </label>
+          ) : (
+            <label className="secondary file-label">
+              ローカルから開く
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleLocalChange}
+                className="file-input"
+              />
+            </label>
+          )}
         </div>
         <p className="helper">
           Pickerが使えない環境では「一覧を取得」でDrive内の音声一覧を表示します。
+          {isIOS ? " iPhoneはSafariでのみローカル選択が有効です。" : ""}
         </p>
       </div>
 
