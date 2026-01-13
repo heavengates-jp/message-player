@@ -302,6 +302,7 @@ const PlayerPage = () => {
     };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
+    const onEnded = () => setPlaying(false);
 
     audio.addEventListener("timeupdate", onTime);
     audio.addEventListener("loadedmetadata", onDuration);
@@ -311,6 +312,7 @@ const PlayerPage = () => {
     audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
+    audio.addEventListener("ended", onEnded);
 
     return () => {
       audio.removeEventListener("timeupdate", onTime);
@@ -321,6 +323,7 @@ const PlayerPage = () => {
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("ended", onEnded);
     };
   }, [audioRef, resumeAt]);
 
@@ -381,6 +384,34 @@ const PlayerPage = () => {
     }
     audio.currentTime = value;
     setCurrentTime(value);
+  };
+
+  const handlePlayToggle = async () => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    if (audio.paused) {
+      try {
+        await audio.play();
+        setPlaying(true);
+      } catch {
+        setError("再生できませんでした。もう一度お試しください。");
+      }
+    } else {
+      audio.pause();
+      setPlaying(false);
+    }
+  };
+
+  const handleSeekAndPlay = (value: number) => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    audio.currentTime = value;
+    setCurrentTime(value);
+    void handlePlayToggle();
   };
 
   const handleSkip = (delta: number) => {
@@ -523,7 +554,7 @@ const PlayerPage = () => {
           </button>
           <button
             className="primary"
-            onClick={() => (playing ? audioRef.current?.pause() : audioRef.current?.play())}
+            onClick={handlePlayToggle}
             disabled={!audioUrl}
           >
             {playing ? "一時停止" : "再生"}
@@ -600,7 +631,7 @@ const PlayerPage = () => {
           {sortedClips.map((clip) => (
             <div className="clip-card" key={clip.id}>
               <div className="clip-header">
-                <button className="chip" onClick={() => handleSeek(clip.timeSec)}>
+                <button className="chip" onClick={() => handleSeekAndPlay(clip.timeSec)}>
                   {formatTime(clip.timeSec)} に移動
                 </button>
                 <button className="ghost small" onClick={() => handleClipDelete(clip.id)}>
