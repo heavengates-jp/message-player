@@ -68,3 +68,8 @@ export const getLocalFile = async (id: string) => {
   const db = await dbPromise;
   return await db.get("localFiles", id);
 };
+
+export const deleteLocalFile = async (id: string) => {
+  const db = await dbPromise;
+  await db.delete("localFiles", id);
+};

@@ -5,6 +5,7 @@ import { fetchAudioBlob, fetchFileMeta } from "../utils/googleApi";
 import {
   addClip,
   deleteClip,
+  deleteLocalFile,
   getHistoryItem,
   getLocalFile,
   getSettings,
@@ -43,6 +44,8 @@ const PlayerPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [clipSort, setClipSort] = useState<"new" | "time">("new");
   const [resumeAt, setResumeAt] = useState<number | null>(null);
+  const [offlineSaved, setOfflineSaved] = useState(false);
+  const [savingOffline, setSavingOffline] = useState(false);
 
   const locationState = location.state as LocalState | null;
   const isLocal = Boolean(fileId?.startsWith("local-"));
@@ -120,7 +123,24 @@ const PlayerPage = () => {
           return;
         }
 
+        const storedOffline = await getLocalFile(fileId);
+        if (!cancelled) {
+          setOfflineSaved(Boolean(storedOffline));
+        }
+
         if (!accessToken || !effectiveUserSub) {
+          if (storedOffline) {
+            if (!cancelled) {
+              setFileMeta({
+                id: fileId,
+                name: storedOffline.name,
+                mimeType: storedOffline.mimeType
+              });
+              setAudioUrl(URL.createObjectURL(storedOffline.blob));
+              setAudioBlob(storedOffline.blob);
+              setLoading(false);
+            }
+          }
           return;
         }
 
@@ -165,7 +185,15 @@ const PlayerPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [fileId, accessToken, effectiveUserSub, isLocal, locationState?.blobUrl, locationState?.name, locationState?.mimeType]);
+  }, [
+    fileId,
+    accessToken,
+    effectiveUserSub,
+    isLocal,
+    locationState?.blobUrl,
+    locationState?.name,
+    locationState?.mimeType
+  ]);
 
   useEffect(() => {
     return () => {
@@ -331,6 +359,33 @@ const PlayerPage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleOfflineSave = async () => {
+    if (!audioBlob || !fileId || !fileMeta) {
+      return;
+    }
+    setSavingOffline(true);
+    try {
+      await saveLocalFile({
+        id: fileId,
+        name: fileMeta.name ?? "音声ファイル",
+        mimeType: fileMeta.mimeType ?? "audio/*",
+        blob: audioBlob,
+        updatedAt: new Date().toISOString()
+      });
+      setOfflineSaved(true);
+    } finally {
+      setSavingOffline(false);
+    }
+  };
+
+  const handleOfflineRemove = async () => {
+    if (!fileId) {
+      return;
+    }
+    await deleteLocalFile(fileId);
+    setOfflineSaved(false);
+  };
+
   const sortedClips = useMemo(() => {
     const copy = [...clips];
     return copy.sort((a, b) =>
@@ -395,6 +450,22 @@ const PlayerPage = () => {
           <button className="secondary" onClick={handleDownload} disabled={!audioBlob}>
             音声を保存
           </button>
+          {!isLocal && (
+            <>
+              <button
+                className="secondary"
+                onClick={handleOfflineSave}
+                disabled={!audioBlob || savingOffline || offlineSaved}
+              >
+                {offlineSaved ? "オフライン保存済み" : "オフライン保存"}
+              </button>
+              {offlineSaved && (
+                <button className="ghost" onClick={handleOfflineRemove}>
+                  保存解除
+                </button>
+              )}
+            </>
+          )}
         </div>
         <div className="speed-row">
           {speedOptions.map((option) => (
