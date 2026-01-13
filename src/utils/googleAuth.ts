@@ -12,7 +12,7 @@ export const DRIVE_SCOPES = [
 ].join(" ");
 
 export const useGoogleAuth = () => {
-  const { loaded } = useScript("https://accounts.google.com/gsi/client");
+  const { loaded, error } = useScript("https://accounts.google.com/gsi/client");
   const { setToken, clear } = useAuthStore();
 
   const tokenClient = useMemo(() => {
@@ -49,6 +49,8 @@ export const useGoogleAuth = () => {
   return {
     ready: Boolean(loaded && CLIENT_ID && window.google?.accounts?.oauth2),
     requestToken,
-    requestTokenSilent: () => requestToken("")
+    requestTokenSilent: () => requestToken(""),
+    error,
+    missingClient: !CLIENT_ID
   };
 };

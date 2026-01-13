@@ -10,12 +10,11 @@ const SettingsPage = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const effectiveUserSub = userSub ?? "local";
+
   useEffect(() => {
-    if (!userSub) {
-      return;
-    }
-    getSettings(userSub).then((data) => setSettings(data));
-  }, [userSub]);
+    getSettings(effectiveUserSub).then((data) => setSettings(data));
+  }, [effectiveUserSub]);
 
   const handleSave = async () => {
     if (!settings) {
@@ -25,10 +24,6 @@ const SettingsPage = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
-
-  if (!userSub) {
-    return <div className="card">ログイン後に設定を変更できます。</div>;
-  }
 
   if (!settings) {
     return <div className="card">設定を読み込み中...</div>;
@@ -69,7 +64,7 @@ const SettingsPage = () => {
       </div>
 
       <div className="card note">
-        設定は端末内に保存され、同じGoogleアカウントで利用する端末ごとに保持されます。
+        {userSub ? "Googleアカウントごと" : "ローカル"}に設定が保存されます。
       </div>
     </section>
   );

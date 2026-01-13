@@ -75,6 +75,10 @@ const PlayerPage = () => {
           if (!cancelled) {
             setClips(loadedClips);
           }
+          const history = await getHistoryItem(effectiveUserSub, fileId);
+          if (!cancelled && history && storedSettings.autoResume) {
+            setResumeAt(history.lastPosition);
+          }
           return;
         }
 
@@ -172,7 +176,7 @@ const PlayerPage = () => {
   }, [audioRef, resumeAt]);
 
   useEffect(() => {
-    if (isLocal || !fileId || !effectiveUserSub || !fileMeta) {
+    if (!fileId || !effectiveUserSub || !fileMeta) {
       return;
     }
     const save = async () => {
@@ -192,7 +196,7 @@ const PlayerPage = () => {
     }, 1200);
 
     return () => clearTimeout(timeout);
-  }, [currentTime, fileId, effectiveUserSub, fileMeta, locationState?.name, isLocal]);
+  }, [currentTime, fileId, effectiveUserSub, fileMeta, locationState?.name]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

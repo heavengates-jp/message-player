@@ -22,8 +22,8 @@ const useInstallPrompt = () => {
 };
 
 const App = () => {
-  const { ready, requestToken, requestTokenSilent } = useGoogleAuth();
-  const { accessToken, userSub, userName, setUser } = useAuthStore();
+  const { ready, requestToken, requestTokenSilent, error, missingClient } = useGoogleAuth();
+  const { accessToken, expiresAt, userSub, userName, setUser, clear } = useAuthStore();
   const [online, setOnline] = useState(navigator.onLine);
   const installPrompt = useInstallPrompt();
   const location = useLocation();
@@ -61,6 +61,15 @@ const App = () => {
     requestTokenSilent();
   }, [ready, accessToken, requestTokenSilent]);
 
+  useEffect(() => {
+    if (!accessToken || !expiresAt) {
+      return;
+    }
+    if (expiresAt <= Date.now()) {
+      clear();
+    }
+  }, [accessToken, expiresAt, clear]);
+
   const canInstall = Boolean(installPrompt);
   const handleInstall = async () => {
     if (!installPrompt) {
@@ -71,6 +80,19 @@ const App = () => {
 
   const isPlayer = location.pathname.startsWith("/player/");
   const title = useMemo(() => (isPlayer ? "再生" : "メッセージプレーヤー"), [isPlayer]);
+
+  const loginLabel = () => {
+    if (missingClient) {
+      return "CLIENT_ID未設定";
+    }
+    if (error) {
+      return "ログイン準備に失敗";
+    }
+    if (!ready) {
+      return "ログイン準備中...";
+    }
+    return "Googleでログイン";
+  };
 
   return (
     <div className="app">
@@ -93,8 +115,11 @@ const App = () => {
         <section className="auth-panel">
           <p>Google Driveにアクセスして音声を選択するため、Googleログインが必要です。</p>
           <button className="primary" onClick={requestToken} disabled={!ready}>
-            {ready ? "Googleでログイン" : "ログイン準備中..."}
+            {loginLabel()}
           </button>
+          {(missingClient || error) && (
+            <div className="helper">ログインできない場合は一度再読み込みしてください。</div>
+          )}
         </section>
       )}
 

@@ -15,6 +15,7 @@ const HomePage = () => {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
+  const [pendingLocalId, setPendingLocalId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -54,7 +55,8 @@ const HomePage = () => {
       .finally(() => setLoadingFiles(false));
   };
 
-  const handleLocalOpen = () => {
+  const handleLocalOpen = (localId?: string) => {
+    setPendingLocalId(localId ?? null);
     fileInputRef.current?.click();
   };
 
@@ -68,6 +70,7 @@ const HomePage = () => {
     navigate(`/player/${localId}`, {
       state: { name: file.name, blobUrl, mimeType: file.type, file }
     });
+    setPendingLocalId(null);
     event.target.value = "";
   };
 
@@ -82,7 +85,7 @@ const HomePage = () => {
           <button className="ghost" onClick={handleList} disabled={!accessToken}>
             一覧を取得
           </button>
-          <button className="secondary" onClick={handleLocalOpen}>
+          <button className="secondary" onClick={() => handleLocalOpen()}>
             ローカルから開く
           </button>
         </div>
@@ -139,19 +142,29 @@ const HomePage = () => {
             </div>
           </div>
           <ul className="list">
-            {historyItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  className="list-item"
-                  onClick={() => navigate(`/player/${item.driveFileId}`, { state: { name: item.name } })}
-                >
-                  <span className="list-title">{item.name}</span>
-                  <span className="list-sub">
-                    最終再生 {new Date(item.lastPlayedAt).toLocaleString("ja-JP")}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {historyItems.map((item) => {
+              const isLocal = item.driveFileId.startsWith("local-");
+              return (
+                <li key={item.id}>
+                  <button
+                    className="list-item"
+                    onClick={() =>
+                      isLocal
+                        ? handleLocalOpen(item.driveFileId)
+                        : navigate(`/player/${item.driveFileId}`, { state: { name: item.name } })
+                    }
+                  >
+                    <span className="list-title">
+                      {item.name}
+                      {isLocal ? "（ローカル: 再選択）" : ""}
+                    </span>
+                    <span className="list-sub">
+                      最終再生 {new Date(item.lastPlayedAt).toLocaleString("ja-JP")}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
