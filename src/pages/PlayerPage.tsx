@@ -128,18 +128,34 @@ const PlayerPage = () => {
           setOfflineSaved(Boolean(storedOffline));
         }
 
+        if (storedOffline && !cancelled) {
+          setFileMeta({
+            id: fileId,
+            name: storedOffline.name,
+            mimeType: storedOffline.mimeType
+          });
+          setAudioUrl(URL.createObjectURL(storedOffline.blob));
+          setAudioBlob(storedOffline.blob);
+        }
+
+        const isOnline =
+          typeof navigator !== "undefined" ? navigator.onLine : true;
+
         if (!accessToken || !effectiveUserSub) {
           if (storedOffline) {
             if (!cancelled) {
-              setFileMeta({
-                id: fileId,
-                name: storedOffline.name,
-                mimeType: storedOffline.mimeType
-              });
-              setAudioUrl(URL.createObjectURL(storedOffline.blob));
-              setAudioBlob(storedOffline.blob);
               setLoading(false);
             }
+          }
+          return;
+        }
+
+        if (storedOffline) {
+          if (!cancelled) {
+            setLoading(false);
+          }
+          if (!isOnline) {
+            return;
           }
           return;
         }
