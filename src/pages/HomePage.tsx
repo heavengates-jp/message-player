@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../utils/authStore";
 import { listAudioFiles } from "../utils/googleApi";
 import { useGooglePicker } from "../utils/googlePicker";
-import { listHistory } from "../utils/data";
+import { deleteHistoryItem, deleteLocalFile, listHistory } from "../utils/data";
 import type { DriveFile, HistoryItem } from "../utils/types";
 
 const HomePage = () => {
@@ -15,6 +15,7 @@ const HomePage = () => {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
+  const [editMode, setEditMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isIOS =
     typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent);
@@ -35,6 +36,15 @@ const HomePage = () => {
       setHistoryItems(sorted);
     });
   }, [userSub, sortMode]);
+
+  const handleHistoryDelete = async (item: HistoryItem) => {
+    const historyUser = userSub ?? "local";
+    await deleteHistoryItem(historyUser, item.driveFileId);
+    if (item.driveFileId.startsWith("local-")) {
+      await deleteLocalFile(item.driveFileId);
+    }
+    setHistoryItems((prev) => prev.filter((entry) => entry.id !== item.id));
+  };
 
   const handlePicker = () => {
     if (!accessToken) {
@@ -148,6 +158,12 @@ const HomePage = () => {
               >
                 名前順
               </button>
+              <button
+                className={editMode ? "chip active" : "chip"}
+                onClick={() => setEditMode((prev) => !prev)}
+              >
+                編集
+              </button>
             </div>
           </div>
           <ul className="list">
@@ -156,17 +172,34 @@ const HomePage = () => {
               return (
                 <li key={item.id}>
                   <button
-                    className="list-item"
-                    onClick={() =>
+                    className={editMode ? "list-item list-item-disabled" : "list-item"}
+                    onClick={() => {
+                      if (editMode) {
+                        return;
+                      }
                       isLocal
                         ? navigate(`/player/${item.driveFileId}`)
-                        : navigate(`/player/${item.driveFileId}`, { state: { name: item.name } })
-                    }
+                        : navigate(`/player/${item.driveFileId}`, { state: { name: item.name } });
+                    }}
                   >
-                    <span className="list-title">
-                      {item.name}
-                      {isLocal ? "（ローカル）" : ""}
-                    </span>
+                    <div className="list-row">
+                      <span className="list-title">
+                        {item.name}
+                        {isLocal ? "（ローカル）" : ""}
+                      </span>
+                      {editMode && (
+                        <button
+                          className="ghost small"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleHistoryDelete(item);
+                          }}
+                        >
+                          削除
+                        </button>
+                      )}
+                    </div>
                     <span className="list-sub">
                       最終再生 {new Date(item.lastPlayedAt).toLocaleString("ja-JP")}
                     </span>

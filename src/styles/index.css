@@ -264,6 +264,17 @@ main {
   gap: 6px;
 }
 
+.list-item-disabled {
+  cursor: default;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .list-title {
   font-weight: 600;
 }

@@ -59,6 +59,12 @@ export const getHistoryItem = async (userSub: string, driveFileId: string) => {
   return await db.get("history", id);
 };
 
+export const deleteHistoryItem = async (userSub: string, driveFileId: string) => {
+  const db = await dbPromise;
+  const id = buildFileKey(userSub, driveFileId);
+  await db.delete("history", id);
+};
+
 export const saveLocalFile = async (file: LocalFile) => {
   const db = await dbPromise;
   await db.put("localFiles", file);
