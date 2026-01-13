@@ -78,8 +78,7 @@ const App = () => {
     await installPrompt.prompt();
   };
 
-  const isPlayer = location.pathname.startsWith("/player/");
-  const title = useMemo(() => (isPlayer ? "再生" : "メッセージプレーヤー"), [isPlayer]);
+  const title = "メッセージプレーヤー";
 
   const loginLabel = () => {
     if (missingClient) {

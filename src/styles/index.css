@@ -1,32 +1,32 @@
-﻿:root {
+@import url("https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;600;700&display=swap");
+
+:root {
   color-scheme: light dark;
-  font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
-  --bg: #f2f1ec;
-  --bg-alt: #fbfaf6;
-  --text: #1b1a16;
-  --muted: #5b5a55;
-  --brand: #0b1b2b;
-  --accent: #f4b34a;
-  --accent-2: #f0674a;
+  font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --bg: #f6f3ee;
+  --bg-alt: #fff9f1;
+  --text: #1f2a36;
+  --muted: #66707a;
+  --brand: #1f2a36;
+  --accent: #e59f3a;
+  --accent-2: #e4684a;
   --card: #ffffff;
-  --border: #e1ddd3;
-  --shadow: 0 8px 24px rgba(16, 20, 30, 0.08);
+  --border: #e5dfd4;
+  --shadow: 0 10px 30px rgba(25, 36, 52, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap");
-
-:root {
-    --bg: #0b1b2b;
-    --bg-alt: #13283c;
-    --text: #f4f1ea;
-    --muted: #c0b7aa;
-    --brand: #f4b34a;
-    --accent: #f4b34a;
-    --accent-2: #f0674a;
-    --card: #0f2438;
-    --border: #24364a;
-    --shadow: 0 16px 30px rgba(2, 8, 15, 0.5);
+  :root {
+    --bg: #0f1722;
+    --bg-alt: #172231;
+    --text: #f1ede6;
+    --muted: #b6b1a7;
+    --brand: #f6cc7b;
+    --accent: #f6cc7b;
+    --accent-2: #ee7e63;
+    --card: #121e2c;
+    --border: #263549;
+    --shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -36,7 +36,10 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top, rgba(244, 179, 74, 0.15), transparent 35%),
+  background:
+    radial-gradient(circle at 20% 10%, rgba(229, 159, 58, 0.18), transparent 40%),
+    radial-gradient(circle at 90% 15%, rgba(228, 104, 74, 0.12), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6), transparent 35%),
     var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -58,8 +61,12 @@ a {
   flex-direction: column;
   gap: 12px;
   padding: 20px 16px 12px;
-  background: var(--bg-alt);
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.9), rgba(255, 245, 229, 0.6));
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(6px);
 }
 
 .brand {
@@ -69,18 +76,20 @@ a {
 }
 
 .brand-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .brand-sub {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 
 .nav {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .nav-link {
@@ -89,11 +98,20 @@ a {
   background: var(--card);
   border: 1px solid var(--border);
   font-size: 14px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nav-link:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
 }
 
 main {
   flex: 1;
-  padding: 16px;
+  padding: 20px 16px 32px;
+  max-width: 980px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .section {
@@ -131,7 +149,7 @@ main {
   margin: 16px;
   padding: 16px;
   border-radius: 16px;
-  background: linear-gradient(120deg, rgba(244, 179, 74, 0.25), transparent);
+  background: linear-gradient(120deg, rgba(229, 159, 58, 0.2), rgba(255, 255, 255, 0.4));
   border: 1px solid var(--border);
 }
 
@@ -174,6 +192,7 @@ main {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .primary {
@@ -237,6 +256,13 @@ main {
   cursor: not-allowed;
 }
 
+.primary:hover:not(:disabled),
+.secondary:hover:not(:disabled),
+.ghost:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
 .helper {
   font-size: 13px;
   color: var(--muted);
@@ -287,7 +313,7 @@ main {
 .player-card {
   background: var(--card);
   border-radius: 20px;
-  padding: 18px;
+  padding: 20px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
@@ -345,8 +371,11 @@ main {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(0, 0, 0, 0.04);
-  padding: 12px 0;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
 }
 
 .status {
@@ -418,7 +447,7 @@ main {
   bottom: 12px;
   font-size: 11px;
   color: var(--muted);
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.15);
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--border);
