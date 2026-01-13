@@ -47,6 +47,13 @@ const PlayerPage = () => {
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [savingOffline, setSavingOffline] = useState(false);
 
+  const normalizeBlob = (blob: Blob, mimeType?: string) => {
+    if (blob.type) {
+      return blob;
+    }
+    return new Blob([blob], { type: mimeType || "audio/mpeg" });
+  };
+
   const locationState = location.state as LocalState | null;
   const isLocal = Boolean(fileId?.startsWith("local-"));
   const effectiveUserSub = userSub ?? (isLocal ? "local" : null);
@@ -78,7 +85,7 @@ const PlayerPage = () => {
           if (!localBlob && fileId) {
             const storedFile = await getLocalFile(fileId);
             if (storedFile) {
-              localBlob = storedFile.blob;
+              localBlob = normalizeBlob(storedFile.blob, storedFile.mimeType);
               localName = storedFile.name;
               localMime = storedFile.mimeType;
               localUrl = URL.createObjectURL(storedFile.blob);
@@ -107,7 +114,7 @@ const PlayerPage = () => {
               id: fileId,
               name: localName,
               mimeType: localMime,
-              blob: localBlob,
+              blob: normalizeBlob(localBlob, localMime),
               updatedAt: new Date().toISOString()
             });
           }
@@ -129,13 +136,20 @@ const PlayerPage = () => {
         }
 
         if (storedOffline && !cancelled) {
+          if (!storedOffline.blob.size) {
+            setError("オフライン保存に失敗しました。容量不足の可能性があります。");
+            setOfflineSaved(false);
+            setLoading(false);
+            return;
+          }
+          const normalizedBlob = normalizeBlob(storedOffline.blob, storedOffline.mimeType);
           setFileMeta({
             id: fileId,
             name: storedOffline.name,
             mimeType: storedOffline.mimeType
           });
-          setAudioUrl(URL.createObjectURL(storedOffline.blob));
-          setAudioBlob(storedOffline.blob);
+          setAudioUrl(URL.createObjectURL(normalizedBlob));
+          setAudioBlob(normalizedBlob);
         }
 
         const isOnline =
@@ -174,9 +188,10 @@ const PlayerPage = () => {
         // TODO: 将来的にはRange対応やストリーミング再生へ切り替える。
         const blob = await fetchAudioBlob(accessToken, fileId);
         if (!cancelled) {
-          const url = URL.createObjectURL(blob);
+          const normalizedBlob = normalizeBlob(blob, meta.mimeType);
+          const url = URL.createObjectURL(normalizedBlob);
           setAudioUrl(url);
-          setAudioBlob(blob);
+          setAudioBlob(normalizedBlob);
         }
 
         const loadedClips = await listClips(effectiveUserSub, fileId);
@@ -385,10 +400,12 @@ const PlayerPage = () => {
         id: fileId,
         name: fileMeta.name ?? "音声ファイル",
         mimeType: fileMeta.mimeType ?? "audio/*",
-        blob: audioBlob,
+        blob: normalizeBlob(audioBlob, fileMeta.mimeType),
         updatedAt: new Date().toISOString()
       });
       setOfflineSaved(true);
+    } catch {
+      setError("オフライン保存に失敗しました。容量不足の可能性があります。");
     } finally {
       setSavingOffline(false);
     }
