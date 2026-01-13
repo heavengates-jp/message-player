@@ -75,6 +75,23 @@ const PlayerPage = () => {
     return new Blob([blob], { type: mimeType || "audio/mpeg" });
   };
 
+  const inferMimeType = (name?: string) => {
+    const lower = name?.toLowerCase() ?? "";
+    if (lower.endsWith(".m4a")) {
+      return "audio/mp4";
+    }
+    if (lower.endsWith(".wav")) {
+      return "audio/wav";
+    }
+    if (lower.endsWith(".aac")) {
+      return "audio/aac";
+    }
+    if (lower.endsWith(".ogg")) {
+      return "audio/ogg";
+    }
+    return "audio/mpeg";
+  };
+
   const locationState = location.state as LocalState | null;
   const isLocal = Boolean(fileId?.startsWith("local-"));
   const effectiveUserSub = userSub ?? (isLocal ? "local" : null);
@@ -100,8 +117,8 @@ const PlayerPage = () => {
 
           let localBlob = locationState?.file ?? null;
           let localName = locationState?.name ?? "ローカル音声";
-          let localMime = locationState?.mimeType ?? "audio/*";
-          let localUrl = locationState?.blobUrl ?? null;
+          let localMime = locationState?.mimeType ?? "";
+          let localUrl = null;
 
           if (!localBlob && fileId) {
             const storedFile = await getLocalFile(fileId);
@@ -111,6 +128,15 @@ const PlayerPage = () => {
               localMime = storedFile.mimeType;
               localUrl = URL.createObjectURL(storedFile.blob);
             }
+          }
+
+          if (localBlob) {
+            if (!localMime || localMime === "audio/*") {
+              localMime = inferMimeType(localName);
+            }
+            const normalized = normalizeBlob(localBlob, localMime);
+            localUrl = URL.createObjectURL(normalized);
+            localBlob = normalized;
           }
 
           if (!localUrl) {
