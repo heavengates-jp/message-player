@@ -122,6 +122,7 @@ const App = () => {
           >
             {loginLabel()}
           </button>
+          <div className="helper">iPhoneはSafariの「ポップアップをブロック」をOFFにしてください。</div>
           {(missingClient || error) && (
             <div className="helper">ログインできない場合は一度再読み込みしてください。</div>
           )}
