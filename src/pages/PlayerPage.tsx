@@ -66,6 +66,7 @@ const PlayerPage = () => {
   const [resumeAt, setResumeAt] = useState<number | null>(null);
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [savingOffline, setSavingOffline] = useState(false);
+  const pendingPlayRef = useRef(false);
 
   const normalizeBlob = (blob: Blob, mimeType?: string) => {
     if (blob.type) {
@@ -175,21 +176,9 @@ const PlayerPage = () => {
         const isOnline =
           typeof navigator !== "undefined" ? navigator.onLine : true;
 
-        if (!accessToken || !effectiveUserSub) {
-          if (storedOffline) {
-            if (!cancelled) {
-              setLoading(false);
-            }
-          }
-          return;
-        }
-
-        if (storedOffline) {
-          if (!cancelled) {
+        if (!effectiveUserSub) {
+          if (storedOffline && !cancelled) {
             setLoading(false);
-          }
-          if (!isOnline) {
-            return;
           }
           return;
         }
@@ -198,6 +187,30 @@ const PlayerPage = () => {
         if (!cancelled) {
           setSettings(storedSettings);
           setSpeed(storedSettings.defaultSpeed || 1);
+        }
+
+        const loadedClips = await listClips(effectiveUserSub, fileId);
+        if (!cancelled) {
+          setClips(loadedClips);
+        }
+
+        const history = await getHistoryItem(effectiveUserSub, fileId);
+        if (!cancelled && history && storedSettings.autoResume) {
+          setResumeAt(history.lastPosition);
+        }
+
+        if (storedOffline) {
+          if (!cancelled) {
+            setLoading(false);
+          }
+          if (!isOnline || !accessToken) {
+            return;
+          }
+          return;
+        }
+
+        if (!accessToken) {
+          return;
         }
 
         const meta = await fetchFileMeta(accessToken, fileId);
@@ -214,15 +227,6 @@ const PlayerPage = () => {
           setAudioBlob(normalizedBlob);
         }
 
-        const loadedClips = await listClips(effectiveUserSub, fileId);
-        if (!cancelled) {
-          setClips(loadedClips);
-        }
-
-        const history = await getHistoryItem(effectiveUserSub, fileId);
-        if (!cancelled && history && storedSettings.autoResume) {
-          setResumeAt(history.lastPosition);
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "読み込みに失敗しました");
       } finally {
@@ -303,11 +307,24 @@ const PlayerPage = () => {
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
     const onEnded = () => setPlaying(false);
+    const onCanPlay = () => {
+      if (!pendingPlayRef.current) {
+        return;
+      }
+      pendingPlayRef.current = false;
+      void audio
+        .play()
+        .then(() => setPlaying(true))
+        .catch(() => {
+          setError("再生できませんでした。もう一度お試しください。");
+        });
+    };
 
     audio.addEventListener("timeupdate", onTime);
     audio.addEventListener("loadedmetadata", onDuration);
     audio.addEventListener("loadeddata", onDuration);
     audio.addEventListener("canplay", onDuration);
+    audio.addEventListener("canplay", onCanPlay);
     audio.addEventListener("durationchange", onDurationChange);
     audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
@@ -319,6 +336,7 @@ const PlayerPage = () => {
       audio.removeEventListener("loadedmetadata", onDuration);
       audio.removeEventListener("loadeddata", onDuration);
       audio.removeEventListener("canplay", onDuration);
+      audio.removeEventListener("canplay", onCanPlay);
       audio.removeEventListener("durationchange", onDurationChange);
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
@@ -392,6 +410,11 @@ const PlayerPage = () => {
       return;
     }
     if (audio.paused) {
+      if (audio.readyState < 2) {
+        pendingPlayRef.current = true;
+        audio.load();
+        return;
+      }
       try {
         await audio.play();
         setPlaying(true);
