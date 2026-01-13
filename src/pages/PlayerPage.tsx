@@ -185,6 +185,14 @@ const PlayerPage = () => {
 
   useEffect(() => {
     const audio = audioRef.current;
+    if (!audio || !audioUrl) {
+      return;
+    }
+    audio.load();
+  }, [audioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
     if (!audio) {
       return;
     }
@@ -197,17 +205,29 @@ const PlayerPage = () => {
         setResumeAt(null);
       }
     };
+    const onDurationChange = () => {
+      if (!Number.isNaN(audio.duration)) {
+        setDuration(audio.duration || 0);
+      }
+    };
+    const onError = () => {
+      setError("音声の読み込みに失敗しました。別のファイルを選択してください。");
+    };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
 
     audio.addEventListener("timeupdate", onTime);
     audio.addEventListener("loadedmetadata", onDuration);
+    audio.addEventListener("durationchange", onDurationChange);
+    audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
 
     return () => {
       audio.removeEventListener("timeupdate", onTime);
       audio.removeEventListener("loadedmetadata", onDuration);
+      audio.removeEventListener("durationchange", onDurationChange);
+      audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
     };
@@ -342,7 +362,7 @@ const PlayerPage = () => {
       </div>
 
       <div className="player-card">
-        <audio ref={audioRef} src={audioUrl ?? undefined} preload="metadata" />
+        <audio ref={audioRef} src={audioUrl ?? undefined} preload="auto" playsInline />
         <div className="time-row">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
