@@ -212,6 +212,13 @@ main {
   font-weight: 600;
 }
 
+.file-input-hidden {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+}
+
 .ghost {
   background: transparent;
   color: var(--text);

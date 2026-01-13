@@ -18,6 +18,11 @@ const HomePage = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isIOS =
     typeof navigator !== "undefined" && /iP(hone|ad|od)/.test(navigator.userAgent);
+  const isStandalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia?.("(display-mode: standalone)").matches ||
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (navigator as any).standalone);
 
   useEffect(() => {
     const historyUser = userSub ?? "local";
@@ -69,6 +74,10 @@ const HomePage = () => {
     event.target.value = "";
   };
 
+  const handleLocalOpen = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <section className="home">
       <div className="section">
@@ -80,31 +89,24 @@ const HomePage = () => {
           <button className="ghost" onClick={handleList} disabled={!accessToken}>
             一覧を取得
           </button>
-          {isIOS ? (
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleLocalChange}
-              className="file-input-ios"
-              aria-label="ローカルから開く"
-            />
-          ) : (
-            <label className="secondary file-label">
-              ローカルから開く
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*"
-                onChange={handleLocalChange}
-                className="file-input"
-              />
-            </label>
-          )}
+          <button className="secondary" type="button" onClick={handleLocalOpen}>
+            ローカルから開く
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,.mp3,.m4a,.wav,.aac"
+            onChange={handleLocalChange}
+            className="file-input-hidden"
+            aria-label="ローカルから開く"
+          />
         </div>
         <p className="helper">
           Pickerが使えない環境では「一覧を取得」でDrive内の音声一覧を表示します。
           {isIOS ? " iPhoneはSafariでのみローカル選択が有効です。" : ""}
+          {isIOS && isStandalone
+            ? " ホーム画面PWAではファイル選択が動かない場合があります。"
+            : ""}
         </p>
       </div>
 
