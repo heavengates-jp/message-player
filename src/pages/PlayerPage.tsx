@@ -67,6 +67,9 @@ const PlayerPage = () => {
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [savingOffline, setSavingOffline] = useState(false);
   const pendingPlayRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const filterNodeRef = useRef<BiquadFilterNode | null>(null);
 
   const normalizeBlob = (blob: Blob, mimeType?: string) => {
     if (blob.type) {
@@ -285,12 +288,55 @@ const PlayerPage = () => {
   }, [audioUrl]);
 
   useEffect(() => {
+    return () => {
+      sourceNodeRef.current?.disconnect();
+      filterNodeRef.current?.disconnect();
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const audio = audioRef.current;
     if (!audio) {
       return;
     }
     audio.playbackRate = speed;
   }, [speed]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    const context = audioContextRef.current;
+    if (!sourceNodeRef.current) {
+      sourceNodeRef.current = context.createMediaElementSource(audio);
+    }
+    sourceNodeRef.current.disconnect();
+    filterNodeRef.current?.disconnect();
+    if (settings?.noiseReduction) {
+      const filter = context.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 8000;
+      filter.Q.value = 0.7;
+      filterNodeRef.current = filter;
+      sourceNodeRef.current.connect(filter);
+      filter.connect(context.destination);
+    } else {
+      filterNodeRef.current = null;
+      sourceNodeRef.current.connect(context.destination);
+    }
+    return () => {
+      sourceNodeRef.current?.disconnect();
+      filterNodeRef.current?.disconnect();
+    };
+  }, [settings?.noiseReduction]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -442,6 +488,9 @@ const PlayerPage = () => {
         return;
       }
       try {
+        if (audioContextRef.current?.state === "suspended") {
+          await audioContextRef.current.resume();
+        }
         await audio.play();
         setPlaying(true);
       } catch {
@@ -637,7 +686,7 @@ const PlayerPage = () => {
           {speedOptions.map((option) => (
             <button
               key={option}
-              className={speed === option ? "chip active" : "chip"}
+              className={speed === option ? "chip speed-chip active" : "chip speed-chip"}
               onClick={() => setSpeed(option)}
             >
               {option}x

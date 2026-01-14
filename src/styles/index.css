@@ -359,6 +359,11 @@ main {
   cursor: pointer;
 }
 
+.speed-chip {
+  width: 60px;
+  text-align: center;
+}
+
 .chip.active {
   background: var(--accent);
   color: #1b1a16;

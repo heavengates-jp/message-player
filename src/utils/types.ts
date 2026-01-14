@@ -41,4 +41,5 @@ export type Settings = {
   userSub: string;
   autoResume: boolean;
   defaultSpeed: number;
+  noiseReduction: boolean;
 };
