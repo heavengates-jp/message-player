@@ -607,6 +607,11 @@ const PlayerPage = () => {
   };
 
   const handleNoiseToggle = async () => {
+    if (isIOS) {
+      setNoiseReduction(false);
+      window.alert("iOSではノイズ除去が不安定なためOFF固定です。");
+      return;
+    }
     const next = !noiseReduction;
     setNoiseReduction(next);
     if (!next) {
@@ -983,11 +988,12 @@ const PlayerPage = () => {
             className="ghost"
             type="button"
             onClick={handleNoiseToggle}
+            disabled={isIOS}
           >
             {noiseReduction ? "ホワイトノイズ除去: ON" : "ホワイトノイズ除去: OFF"}
           </button>
           {isIOS && (
-            <span className="helper">iOSではノイズ除去が不安定になることがあります。</span>
+            <span className="helper">iOSではノイズ除去が不安定なためOFF固定です。</span>
           )}
           {!isLocal && (
             <>
