@@ -412,10 +412,18 @@ const PlayerPage = () => {
     source.connect(filter.highShelf);
     filter.highShelf.connect(filter.lowPass);
     filter.lowPass.connect(ctx.destination);
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
     const audio = audioRef.current;
     if (audio) {
       audio.playbackRate = speed;
       audio.defaultPlaybackRate = speed;
+      if (!audio.paused) {
+        void audio.play().catch(() => {
+          // ignore: autoplay restriction
+        });
+      }
     }
   }, [noiseReduction, audioUrl, speed]);
 
@@ -581,6 +589,8 @@ const PlayerPage = () => {
         if (audioContextRef.current?.state === "suspended") {
           await audioContextRef.current.resume();
         }
+        audio.playbackRate = speed;
+        audio.defaultPlaybackRate = speed;
         await audio.play();
         setPlaying(true);
       } catch {
@@ -1002,7 +1012,7 @@ const PlayerPage = () => {
           <div className="mini-time">
             {formatTime(currentTime)} / {formatTime(duration)}
           </div>
-          <div className="mini-actions">
+          <div className="mini-row">
             <button className="ghost small" onClick={() => handleSkip(-10)}>
               10秒戻し
             </button>
@@ -1018,6 +1028,8 @@ const PlayerPage = () => {
             <button className="ghost small" onClick={() => handleSkip(30)}>
               30秒送り
             </button>
+          </div>
+          <div className="mini-row mini-row-secondary">
             <button className="secondary small" onClick={handleClipAdd}>
               + クリップ
             </button>

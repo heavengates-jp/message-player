@@ -423,13 +423,23 @@ main {
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 8px;
+  text-align: center;
 }
 
-.mini-actions {
+.mini-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  justify-content: center;
+}
+
+.mini-row + .mini-row {
+  margin-top: 8px;
+}
+
+.mini-row-secondary {
+  justify-content: space-between;
 }
 
 @media (prefers-color-scheme: dark) {
