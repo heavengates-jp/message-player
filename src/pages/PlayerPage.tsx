@@ -984,16 +984,14 @@ const PlayerPage = () => {
           <button className="secondary" onClick={handleDownload} disabled={!audioBlob}>
             音声を保存
           </button>
-          <button
-            className="ghost"
-            type="button"
-            onClick={handleNoiseToggle}
-            disabled={isIOS}
-          >
-            {noiseReduction ? "ホワイトノイズ除去: ON" : "ホワイトノイズ除去: OFF"}
-          </button>
-          {isIOS && (
-            <span className="helper">iOSではノイズ除去が不安定なためOFF固定です。</span>
+          {!isIOS && (
+            <button
+              className="ghost"
+              type="button"
+              onClick={handleNoiseToggle}
+            >
+              {noiseReduction ? "ホワイトノイズ除去: ON" : "ホワイトノイズ除去: OFF"}
+            </button>
           )}
           {!isLocal && (
             <>
