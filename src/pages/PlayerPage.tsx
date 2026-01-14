@@ -68,6 +68,8 @@ const PlayerPage = () => {
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [savingOffline, setSavingOffline] = useState(false);
   const pendingPlayRef = useRef(false);
+  const [showMiniControls, setShowMiniControls] = useState(false);
+  const playerCardRef = useRef<HTMLDivElement | null>(null);
   const [noiseReduction, setNoiseReduction] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -343,6 +345,21 @@ const PlayerPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const card = playerCardRef.current;
+      if (!card) {
+        setShowMiniControls(false);
+        return;
+      }
+      const rect = card.getBoundingClientRect();
+      setShowMiniControls(rect.bottom < 0);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   
 
   useEffect(() => {
@@ -596,6 +613,10 @@ const PlayerPage = () => {
     audio.currentTime = value;
     setCurrentTime(value);
     void handlePlayToggle();
+  };
+
+  const handleScrollTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSkip = (delta: number) => {
@@ -903,7 +924,7 @@ const PlayerPage = () => {
         <p className="helper">速度や位置は設定でデフォルト値を変更できます。</p>
       </div>
 
-      <div className="player-card">
+      <div className="player-card" ref={playerCardRef}>
         <audio ref={audioRef} src={audioUrl ?? undefined} preload="auto" playsInline />
         <div className="time-row">
           <span>{formatTime(currentTime)}</span>
@@ -975,6 +996,37 @@ const PlayerPage = () => {
           ))}
         </div>
       </div>
+
+      {showMiniControls && (
+        <div className="mini-controls">
+          <div className="mini-time">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </div>
+          <div className="mini-actions">
+            <button className="ghost small" onClick={() => handleSkip(-10)}>
+              10秒戻し
+            </button>
+            <button
+              className="primary play-toggle"
+              onClick={handlePlayToggle}
+              disabled={!audioUrl}
+              aria-label={playing ? "一時停止" : "再生"}
+              title={playing ? "一時停止" : "再生"}
+            >
+              <span className="play-icon">{playing ? "❚❚" : "▶"}</span>
+            </button>
+            <button className="ghost small" onClick={() => handleSkip(30)}>
+              30秒送り
+            </button>
+            <button className="secondary small" onClick={handleClipAdd}>
+              + クリップ
+            </button>
+            <button className="ghost small" onClick={handleScrollTop}>
+              上に戻る
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="sticky-actions">
         <button className="primary" onClick={handleClipAdd}>
