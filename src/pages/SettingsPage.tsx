@@ -3,7 +3,7 @@ import { useAuthStore } from "../utils/authStore";
 import { getSettings, saveSettings } from "../utils/data";
 import type { Settings } from "../utils/types";
 
-const speedOptions = [0.75, 1, 1.25, 1.5, 2];
+const speedOptions = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
 const SettingsPage = () => {
   const { userSub } = useAuthStore();

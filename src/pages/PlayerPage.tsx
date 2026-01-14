@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { useAuthStore } from "../utils/authStore";
 import { fetchAudioBlob, fetchFileMeta } from "../utils/googleApi";
@@ -17,7 +18,7 @@ import {
 import { buildFileKey } from "../utils/db";
 import type { Clip, DriveFile, HistoryItem, Settings } from "../utils/types";
 
-const speedOptions = [0.75, 1, 1.25, 1.5, 2];
+const speedOptions = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
 type LocalState = {
   name?: string;
@@ -67,9 +68,15 @@ const PlayerPage = () => {
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [savingOffline, setSavingOffline] = useState(false);
   const pendingPlayRef = useRef(false);
+  const [noiseReduction, setNoiseReduction] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const filterNodeRef = useRef<BiquadFilterNode | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const noiseFilterRef = useRef<{
+    highShelf: BiquadFilterNode;
+    lowPass: BiquadFilterNode;
+  } | null>(null);
+  const clipSaveTimers = useRef<Map<string, number>>(new Map());
+  const fileImportRef = useRef<HTMLInputElement | null>(null);
 
   const normalizeBlob = (blob: Blob, mimeType?: string) => {
     if (blob.type) {
@@ -95,6 +102,34 @@ const PlayerPage = () => {
     return "audio/mpeg";
   };
 
+  const ensureAudioNodes = () => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return null;
+    }
+    if (!audioContextRef.current) {
+      const AudioCtor = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      audioContextRef.current = new AudioCtor();
+    }
+    if (!mediaSourceRef.current) {
+      mediaSourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+    }
+    if (!noiseFilterRef.current) {
+      const ctx = audioContextRef.current;
+      const highShelf = ctx.createBiquadFilter();
+      highShelf.type = "highshelf";
+      highShelf.frequency.value = 4000;
+      highShelf.gain.value = -10;
+
+      const lowPass = ctx.createBiquadFilter();
+      lowPass.type = "lowpass";
+      lowPass.frequency.value = 12000;
+
+      noiseFilterRef.current = { highShelf, lowPass };
+    }
+    return { audio, ctx: audioContextRef.current };
+  };
+
   const locationState = location.state as LocalState | null;
   const isLocal = Boolean(fileId?.startsWith("local-"));
   const effectiveUserSub = userSub ?? (isLocal ? "local" : null);
@@ -116,6 +151,7 @@ const PlayerPage = () => {
           if (!cancelled) {
             setSettings(storedSettings);
             setSpeed(storedSettings.defaultSpeed || 1);
+            setNoiseReduction(Boolean(storedSettings.noiseReduction));
           }
 
           let localBlob = locationState?.file ?? null;
@@ -216,6 +252,7 @@ const PlayerPage = () => {
         if (!cancelled) {
           setSettings(storedSettings);
           setSpeed(storedSettings.defaultSpeed || 1);
+          setNoiseReduction(Boolean(storedSettings.noiseReduction));
         }
 
         const loadedClips = await listClips(effectiveUserSub, fileId);
@@ -289,8 +326,9 @@ const PlayerPage = () => {
 
   useEffect(() => {
     return () => {
-      sourceNodeRef.current?.disconnect();
-      filterNodeRef.current?.disconnect();
+      mediaSourceRef.current?.disconnect();
+      noiseFilterRef.current?.highShelf.disconnect();
+      noiseFilterRef.current?.lowPass.disconnect();
       if (audioContextRef.current) {
         void audioContextRef.current.close();
         audioContextRef.current = null;
@@ -299,44 +337,13 @@ const PlayerPage = () => {
   }, []);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-    audio.playbackRate = speed;
-  }, [speed]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-    }
-    const context = audioContextRef.current;
-    if (!sourceNodeRef.current) {
-      sourceNodeRef.current = context.createMediaElementSource(audio);
-    }
-    sourceNodeRef.current.disconnect();
-    filterNodeRef.current?.disconnect();
-    if (settings?.noiseReduction) {
-      const filter = context.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 8000;
-      filter.Q.value = 0.7;
-      filterNodeRef.current = filter;
-      sourceNodeRef.current.connect(filter);
-      filter.connect(context.destination);
-    } else {
-      filterNodeRef.current = null;
-      sourceNodeRef.current.connect(context.destination);
-    }
     return () => {
-      sourceNodeRef.current?.disconnect();
-      filterNodeRef.current?.disconnect();
+      clipSaveTimers.current.forEach((timerId) => window.clearTimeout(timerId));
+      clipSaveTimers.current.clear();
     };
-  }, [settings?.noiseReduction]);
+  }, []);
+
+  
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -345,6 +352,44 @@ const PlayerPage = () => {
     }
     audio.load();
   }, [audioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.playbackRate = speed;
+    }
+  }, [speed]);
+
+  useEffect(() => {
+    if (!noiseReduction) {
+      const source = mediaSourceRef.current;
+      const ctx = audioContextRef.current;
+      if (!source || !ctx) {
+        return;
+      }
+      source.disconnect();
+      noiseFilterRef.current?.highShelf.disconnect();
+      noiseFilterRef.current?.lowPass.disconnect();
+      source.connect(ctx.destination);
+      return;
+    }
+    const nodes = ensureAudioNodes();
+    if (!nodes) {
+      return;
+    }
+    const source = mediaSourceRef.current;
+    const filter = noiseFilterRef.current;
+    const ctx = audioContextRef.current;
+    if (!source || !filter || !ctx) {
+      return;
+    }
+    source.disconnect();
+    filter.highShelf.disconnect();
+    filter.lowPass.disconnect();
+    source.connect(filter.highShelf);
+    filter.highShelf.connect(filter.lowPass);
+    filter.lowPass.connect(ctx.destination);
+  }, [noiseReduction, audioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -481,6 +526,12 @@ const PlayerPage = () => {
     if (!audio) {
       return;
     }
+    if (noiseReduction) {
+      ensureAudioNodes();
+    }
+    if (audioContextRef.current?.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
     if (audio.paused) {
       if (audio.readyState < 2) {
         pendingPlayRef.current = true;
@@ -499,6 +550,18 @@ const PlayerPage = () => {
     } else {
       audio.pause();
       setPlaying(false);
+    }
+  };
+
+  const handleNoiseToggle = async () => {
+    const next = !noiseReduction;
+    setNoiseReduction(next);
+    if (!next) {
+      return;
+    }
+    const nodes = ensureAudioNodes();
+    if (nodes?.ctx.state === "suspended") {
+      await nodes.ctx.resume();
     }
   };
 
@@ -544,12 +607,6 @@ const PlayerPage = () => {
     setClips((prev) =>
       prev.map((clip) => (clip.id === clipId ? { ...clip, ...updates } : clip))
     );
-  };
-
-  const handleClipSave = async (clip: Clip) => {
-    const updated = { ...clip, updatedAt: new Date().toISOString() };
-    updateClipState(clip.id, { updatedAt: updated.updatedAt });
-    await updateClip(updated);
   };
 
   const handleClipDelete = async (clipId: string) => {
@@ -599,6 +656,198 @@ const PlayerPage = () => {
     }
     await deleteLocalFile(fileId);
     setOfflineSaved(false);
+  };
+
+
+
+  const autoResizeMemo = (element: HTMLTextAreaElement) => {
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      document
+        .querySelectorAll<HTMLTextAreaElement>(".clip-memo")
+        .forEach((element) => autoResizeMemo(element));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [clips]);
+
+
+
+  const scheduleClipSave = (clipId: string, getUpdated: () => Clip) => {
+
+    const prevTimer = clipSaveTimers.current.get(clipId);
+
+    if (prevTimer) {
+
+      window.clearTimeout(prevTimer);
+
+    }
+
+    const timer = window.setTimeout(async () => {
+
+      const updated = { ...getUpdated(), updatedAt: new Date().toISOString() };
+
+      updateClipState(clipId, { updatedAt: updated.updatedAt });
+
+      await updateClip(updated);
+
+      clipSaveTimers.current.delete(clipId);
+
+    }, 600);
+
+    clipSaveTimers.current.set(clipId, timer);
+
+  };
+
+
+
+  const handleClipExport = () => {
+
+    if (!fileId || !effectiveUserSub) {
+
+      return;
+
+    }
+
+    const payload = {
+
+      version: 1,
+
+      fileId,
+
+      name: fileMeta?.name ?? "",
+
+      clips: clips.map((clip) => ({
+
+        timeSec: clip.timeSec,
+
+        title: clip.title,
+
+        memo: clip.memo,
+
+        createdAt: clip.createdAt,
+
+        updatedAt: clip.updatedAt
+
+      }))
+
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+
+      type: "application/json"
+
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    const safeName = (fileMeta?.name ?? "clips").replace(/[\/:*?"<>|]/g, "_");
+
+    link.href = url;
+
+    link.download = `${safeName}-clips.json`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    URL.revokeObjectURL(url);
+
+  };
+
+
+
+  const handleClipImport = async (event: ChangeEvent<HTMLInputElement>) => {
+
+    const file = event.target.files?.[0];
+
+    if (!file || !fileId || !effectiveUserSub) {
+
+      return;
+
+    }
+
+    try {
+
+      const text = await file.text();
+
+      const parsed = JSON.parse(text) as {
+
+        clips?: Array<{
+
+          timeSec?: number;
+
+          title?: string;
+
+          memo?: string;
+
+          createdAt?: string;
+
+          updatedAt?: string;
+
+        }>;
+
+      };
+
+      if (!parsed?.clips?.length) {
+
+        setError("クリップの読み込みに失敗しました。");
+
+        return;
+
+      }
+
+      for (const entry of parsed.clips) {
+
+        const now = new Date().toISOString();
+
+        const clipId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+
+        const newClip = {
+
+          clipId,
+
+          driveFileId: fileId,
+
+          userSub: effectiveUserSub,
+
+          timeSec: Math.max(0, Math.floor(entry.timeSec ?? 0)),
+
+          title: entry.title ?? "",
+
+          memo: entry.memo ?? "",
+
+          createdAt: entry.createdAt ?? now,
+
+          updatedAt: entry.updatedAt ?? now
+
+        };
+
+        await addClip(newClip);
+
+      }
+
+      const loadedClips = await listClips(effectiveUserSub, fileId);
+
+      setClips(loadedClips);
+
+    } catch {
+
+      setError("クリップの読み込みに失敗しました。");
+
+    } finally {
+
+      event.target.value = "";
+
+    }
+
   };
 
   const sortedClips = useMemo(() => {
@@ -651,11 +900,13 @@ const PlayerPage = () => {
             10秒戻し
           </button>
           <button
-            className="primary"
+            className="primary play-toggle"
             onClick={handlePlayToggle}
             disabled={!audioUrl}
+            aria-label={playing ? "一時停止" : "再生"}
+            title={playing ? "一時停止" : "再生"}
           >
-            {playing ? "一時停止" : "再生"}
+            <span className="play-icon">{playing ? "❚❚" : "▶"}</span>
           </button>
           <button className="ghost" onClick={() => handleSkip(30)}>
             30秒送り
@@ -664,6 +915,13 @@ const PlayerPage = () => {
         <div className="button-row">
           <button className="secondary" onClick={handleDownload} disabled={!audioBlob}>
             音声を保存
+          </button>
+          <button
+            className="ghost"
+            type="button"
+            onClick={handleNoiseToggle}
+          >
+            {noiseReduction ? "ホワイトノイズ除去: ON" : "ホワイトノイズ除去: OFF"}
           </button>
           {!isLocal && (
             <>
@@ -720,6 +978,20 @@ const PlayerPage = () => {
             >
               時刻順
             </button>
+            <button className="ghost small" onClick={handleClipExport}>
+              クリップ保存
+            </button>
+            <button className="ghost small" onClick={() => fileImportRef.current?.click()}>
+              クリップ挿入
+            </button>
+            <input
+              ref={fileImportRef}
+              className="file-input-hidden"
+              type="file"
+              accept="application/json"
+              onChange={handleClipImport}
+              aria-label="クリップ挿入"
+            />
           </div>
         </div>
 
@@ -740,19 +1012,27 @@ const PlayerPage = () => {
                 className="clip-title"
                 placeholder="タイトル（後から入力OK）"
                 value={clip.title}
-                onChange={(e) => updateClipState(clip.id, { title: e.target.value })}
+                onChange={(e) => {
+                  const nextTitle = e.target.value;
+                  updateClipState(clip.id, { title: nextTitle });
+                  scheduleClipSave(clip.id, () => ({ ...clip, title: nextTitle }));
+                }}
               />
               <textarea
                 className="clip-memo"
                 placeholder="メモ"
                 value={clip.memo}
-                onChange={(e) => updateClipState(clip.id, { memo: e.target.value })}
+                onChange={(e) => {
+                  const nextMemo = e.target.value;
+                  updateClipState(clip.id, { memo: nextMemo });
+                  autoResizeMemo(e.target);
+                  scheduleClipSave(clip.id, () => ({ ...clip, memo: nextMemo }));
+                }}
+                onInput={(e) => autoResizeMemo(e.currentTarget)}
               />
               <div className="clip-footer">
                 <span className="clip-date">更新 {new Date(clip.updatedAt).toLocaleString("ja-JP")}</span>
-                <button className="secondary" onClick={() => handleClipSave(clip)}>
-                  保存
-                </button>
+                <span className="status">自動保存</span>
               </div>
             </div>
           ))}
@@ -763,3 +1043,4 @@ const PlayerPage = () => {
 };
 
 export default PlayerPage;
+
