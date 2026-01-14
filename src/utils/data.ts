@@ -4,13 +4,18 @@ import type { Clip, HistoryItem, LocalFile, Settings } from "./types";
 export const defaultSettings = (userSub: string): Settings => ({
   userSub,
   autoResume: true,
-  defaultSpeed: 1
+  defaultSpeed: 1,
+  noiseReduction: true
 });
 
 export const getSettings = async (userSub: string) => {
   const db = await dbPromise;
   const stored = await db.get("settings", userSub);
-  return stored ?? defaultSettings(userSub);
+  const defaults = defaultSettings(userSub);
+  if (!stored) {
+    return defaults;
+  }
+  return { ...defaults, ...stored };
 };
 
 export const saveSettings = async (settings: Settings) => {
