@@ -357,6 +357,7 @@ const PlayerPage = () => {
     const audio = audioRef.current;
     if (audio) {
       audio.playbackRate = speed;
+      audio.defaultPlaybackRate = speed;
     }
   }, [speed]);
 
@@ -371,6 +372,11 @@ const PlayerPage = () => {
       noiseFilterRef.current?.highShelf.disconnect();
       noiseFilterRef.current?.lowPass.disconnect();
       source.connect(ctx.destination);
+      const audio = audioRef.current;
+      if (audio) {
+        audio.playbackRate = speed;
+        audio.defaultPlaybackRate = speed;
+      }
       return;
     }
     const nodes = ensureAudioNodes();
@@ -389,7 +395,12 @@ const PlayerPage = () => {
     source.connect(filter.highShelf);
     filter.highShelf.connect(filter.lowPass);
     filter.lowPass.connect(ctx.destination);
-  }, [noiseReduction, audioUrl]);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.playbackRate = speed;
+      audio.defaultPlaybackRate = speed;
+    }
+  }, [noiseReduction, audioUrl, speed]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -406,6 +417,8 @@ const PlayerPage = () => {
     const onDuration = () => {
       const nextDuration = getDurationValue(audio);
       setDuration(nextDuration);
+      audio.playbackRate = speed;
+      audio.defaultPlaybackRate = speed;
       if (resumeAt !== null) {
         audio.currentTime = resumeAt;
         setCurrentTime(resumeAt);
@@ -422,13 +435,22 @@ const PlayerPage = () => {
       setError("音声の読み込みに失敗しました。別のファイルを選択してください。");
     };
     const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onEnded = () => setPlaying(false);
+    const onPause = () => {
+      pendingPlayRef.current = false;
+      setPlaying(false);
+    };
+    const onEnded = () => {
+      pendingPlayRef.current = false;
+      setPlaying(false);
+    };
     const onCanPlay = () => {
       if (!pendingPlayRef.current) {
         return;
       }
       pendingPlayRef.current = false;
+      if (!audio.paused) {
+        return;
+      }
       void audio
         .play()
         .then(() => setPlaying(true))
@@ -548,6 +570,7 @@ const PlayerPage = () => {
         setError("再生できませんでした。もう一度お試しください。");
       }
     } else {
+      pendingPlayRef.current = false;
       audio.pause();
       setPlaying(false);
     }
