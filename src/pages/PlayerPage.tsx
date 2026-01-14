@@ -51,6 +51,12 @@ const PlayerPage = () => {
   const { fileId } = useParams();
   const { accessToken, userSub } = useAuthStore();
   const location = useLocation();
+  const isIOS = useMemo(() => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+    return /iP(hone|ad|od)/.test(navigator.userAgent);
+  }, []);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [fileMeta, setFileMeta] = useState<DriveFile | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -153,7 +159,7 @@ const PlayerPage = () => {
           if (!cancelled) {
             setSettings(storedSettings);
             setSpeed(storedSettings.defaultSpeed || 1);
-            setNoiseReduction(Boolean(storedSettings.noiseReduction));
+            setNoiseReduction(Boolean(storedSettings.noiseReduction) && !isIOS);
           }
 
           let localBlob = locationState?.file ?? null;
@@ -254,7 +260,7 @@ const PlayerPage = () => {
         if (!cancelled) {
           setSettings(storedSettings);
           setSpeed(storedSettings.defaultSpeed || 1);
-          setNoiseReduction(Boolean(storedSettings.noiseReduction));
+          setNoiseReduction(Boolean(storedSettings.noiseReduction) && !isIOS);
         }
 
         const loadedClips = await listClips(effectiveUserSub, fileId);
@@ -412,9 +418,6 @@ const PlayerPage = () => {
     source.connect(filter.highShelf);
     filter.highShelf.connect(filter.lowPass);
     filter.lowPass.connect(ctx.destination);
-    if (ctx.state === "suspended") {
-      void ctx.resume();
-    }
     const audio = audioRef.current;
     if (audio) {
       audio.playbackRate = speed;
@@ -604,6 +607,10 @@ const PlayerPage = () => {
   };
 
   const handleNoiseToggle = async () => {
+    if (isIOS) {
+      window.alert("iOSではノイズ除去が不安定なためOFF固定です。");
+      return;
+    }
     const next = !noiseReduction;
     setNoiseReduction(next);
     if (!next) {
@@ -634,7 +641,13 @@ const PlayerPage = () => {
     if (!audio) {
       return;
     }
+    const wasPlaying = !audio.paused;
     audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + delta));
+    if (wasPlaying) {
+      void audio.play().catch(() => {
+        // ignore autoplay restriction
+      });
+    }
   };
 
   const handleClipAdd = async () => {
@@ -974,6 +987,7 @@ const PlayerPage = () => {
             className="ghost"
             type="button"
             onClick={handleNoiseToggle}
+            disabled={isIOS}
           >
             {noiseReduction ? "ホワイトノイズ除去: ON" : "ホワイトノイズ除去: OFF"}
           </button>
