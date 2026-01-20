@@ -462,7 +462,11 @@ const PlayerPage = () => {
     const onError = () => {
       setError("音声の読み込みに失敗しました。別のファイルを選択してください。");
     };
-    const onPlay = () => setPlaying(true);
+    const onPlay = () => {
+      audio.playbackRate = speed;
+      audio.defaultPlaybackRate = speed;
+      setPlaying(true);
+    };
     const onPause = () => {
       pendingPlayRef.current = false;
       setPlaying(false);
@@ -470,6 +474,10 @@ const PlayerPage = () => {
     const onEnded = () => {
       pendingPlayRef.current = false;
       setPlaying(false);
+    };
+    const onSeeked = () => {
+      audio.playbackRate = speed;
+      audio.defaultPlaybackRate = speed;
     };
     const onCanPlay = () => {
       if (!pendingPlayRef.current) {
@@ -492,6 +500,7 @@ const PlayerPage = () => {
     audio.addEventListener("loadeddata", onDuration);
     audio.addEventListener("canplay", onDuration);
     audio.addEventListener("canplay", onCanPlay);
+    audio.addEventListener("seeked", onSeeked);
     audio.addEventListener("durationchange", onDurationChange);
     audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
@@ -504,6 +513,7 @@ const PlayerPage = () => {
       audio.removeEventListener("loadeddata", onDuration);
       audio.removeEventListener("canplay", onDuration);
       audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("seeked", onSeeked);
       audio.removeEventListener("durationchange", onDurationChange);
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
