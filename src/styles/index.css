@@ -281,6 +281,25 @@ main {
   line-height: 1;
 }
 
+.control-skip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  min-width: 64px;
+}
+
+.control-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.control-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .helper {
   font-size: 13px;
   color: var(--muted);
@@ -352,8 +371,9 @@ main {
 .controls {
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  justify-content: center;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .speed-row {

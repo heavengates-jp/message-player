@@ -976,11 +976,13 @@ const PlayerPage = () => {
           onChange={(e) => handleSeek(Number(e.target.value))}
         />
         <div className="controls">
-          <button className="ghost" onClick={() => handleSkip(-30)}>
-            {"<<30"}
+          <button className="ghost control-skip" onClick={() => handleSkip(-30)}>
+            <span className="control-icon">⏮</span>
+            <span className="control-label">-30s</span>
           </button>
-          <button className="ghost" onClick={() => handleSkip(-10)}>
-            {"<<10"}
+          <button className="ghost control-skip" onClick={() => handleSkip(-10)}>
+            <span className="control-icon">⏮</span>
+            <span className="control-label">-10s</span>
           </button>
           <button
             className="primary play-toggle"
@@ -991,11 +993,13 @@ const PlayerPage = () => {
           >
             <span className="play-icon">{playing ? "❚❚" : "▶"}</span>
           </button>
-          <button className="ghost" onClick={() => handleSkip(10)}>
-            {">>10"}
+          <button className="ghost control-skip" onClick={() => handleSkip(10)}>
+            <span className="control-icon">⏭</span>
+            <span className="control-label">+10s</span>
           </button>
-          <button className="ghost" onClick={() => handleSkip(30)}>
-            {">>30"}
+          <button className="ghost control-skip" onClick={() => handleSkip(30)}>
+            <span className="control-icon">⏭</span>
+            <span className="control-label">+30s</span>
           </button>
         </div>
         <div className="button-row">
@@ -1047,11 +1051,13 @@ const PlayerPage = () => {
             {formatTime(currentTime)} / {formatTime(duration)}
           </div>
           <div className="mini-row">
-            <button className="ghost small" onClick={() => handleSkip(-30)}>
-              {"<<30"}
+            <button className="ghost small control-skip" onClick={() => handleSkip(-30)}>
+              <span className="control-icon">⏮</span>
+              <span className="control-label">-30s</span>
             </button>
-            <button className="ghost small" onClick={() => handleSkip(-10)}>
-              {"<<10"}
+            <button className="ghost small control-skip" onClick={() => handleSkip(-10)}>
+              <span className="control-icon">⏮</span>
+              <span className="control-label">-10s</span>
             </button>
             <button
               className="primary play-toggle"
@@ -1062,11 +1068,13 @@ const PlayerPage = () => {
             >
               <span className="play-icon">{playing ? "❚❚" : "▶"}</span>
             </button>
-            <button className="ghost small" onClick={() => handleSkip(10)}>
-              {">>10"}
+            <button className="ghost small control-skip" onClick={() => handleSkip(10)}>
+              <span className="control-icon">⏭</span>
+              <span className="control-label">+10s</span>
             </button>
-            <button className="ghost small" onClick={() => handleSkip(30)}>
-              {">>30"}
+            <button className="ghost small control-skip" onClick={() => handleSkip(30)}>
+              <span className="control-icon">⏭</span>
+              <span className="control-label">+30s</span>
             </button>
           </div>
           <div className="mini-row mini-row-secondary">
