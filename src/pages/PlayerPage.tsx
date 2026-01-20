@@ -68,6 +68,7 @@ const PlayerPage = () => {
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const speedRef = useRef(1);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [clipSort, setClipSort] = useState<"new" | "time">("new");
   const [resumeAt, setResumeAt] = useState<number | null>(null);
@@ -136,6 +137,20 @@ const PlayerPage = () => {
       noiseFilterRef.current = { highShelf, lowPass };
     }
     return { audio, ctx: audioContextRef.current };
+  };
+
+  const applyPlaybackRate = () => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    const next = speedRef.current;
+    if (audio.playbackRate !== next) {
+      audio.playbackRate = next;
+    }
+    if (audio.defaultPlaybackRate !== next) {
+      audio.defaultPlaybackRate = next;
+    }
   };
 
   const locationState = location.state as LocalState | null;
@@ -377,11 +392,8 @@ const PlayerPage = () => {
   }, [audioUrl]);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.playbackRate = speed;
-      audio.defaultPlaybackRate = speed;
-    }
+    speedRef.current = speed;
+    applyPlaybackRate();
   }, [speed]);
 
   useEffect(() => {
@@ -395,11 +407,7 @@ const PlayerPage = () => {
       noiseFilterRef.current?.highShelf.disconnect();
       noiseFilterRef.current?.lowPass.disconnect();
       source.connect(ctx.destination);
-      const audio = audioRef.current;
-      if (audio) {
-        audio.playbackRate = speed;
-        audio.defaultPlaybackRate = speed;
-      }
+      applyPlaybackRate();
       return;
     }
     const nodes = ensureAudioNodes();
@@ -418,15 +426,12 @@ const PlayerPage = () => {
     source.connect(filter.highShelf);
     filter.highShelf.connect(filter.lowPass);
     filter.lowPass.connect(ctx.destination);
+    applyPlaybackRate();
     const audio = audioRef.current;
-    if (audio) {
-      audio.playbackRate = speed;
-      audio.defaultPlaybackRate = speed;
-      if (!audio.paused) {
-        void audio.play().catch(() => {
-          // ignore: autoplay restriction
-        });
-      }
+    if (audio && !audio.paused) {
+      void audio.play().catch(() => {
+        // ignore: autoplay restriction
+      });
     }
   }, [noiseReduction, audioUrl, speed]);
 
@@ -445,8 +450,7 @@ const PlayerPage = () => {
     const onDuration = () => {
       const nextDuration = getDurationValue(audio);
       setDuration(nextDuration);
-      audio.playbackRate = speed;
-      audio.defaultPlaybackRate = speed;
+      applyPlaybackRate();
       if (resumeAt !== null) {
         audio.currentTime = resumeAt;
         setCurrentTime(resumeAt);
@@ -463,8 +467,7 @@ const PlayerPage = () => {
       setError("音声の読み込みに失敗しました。別のファイルを選択してください。");
     };
     const onPlay = () => {
-      audio.playbackRate = speed;
-      audio.defaultPlaybackRate = speed;
+      applyPlaybackRate();
       setPlaying(true);
     };
     const onPause = () => {
@@ -476,8 +479,7 @@ const PlayerPage = () => {
       setPlaying(false);
     };
     const onSeeked = () => {
-      audio.playbackRate = speed;
-      audio.defaultPlaybackRate = speed;
+      applyPlaybackRate();
     };
     const onCanPlay = () => {
       if (!pendingPlayRef.current) {
@@ -602,8 +604,7 @@ const PlayerPage = () => {
         if (audioContextRef.current?.state === "suspended") {
           await audioContextRef.current.resume();
         }
-        audio.playbackRate = speed;
-        audio.defaultPlaybackRate = speed;
+        applyPlaybackRate();
         await audio.play();
         setPlaying(true);
       } catch {
@@ -654,8 +655,7 @@ const PlayerPage = () => {
     }
     const wasPlaying = !audio.paused;
     audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + delta));
-    audio.playbackRate = speed;
-    audio.defaultPlaybackRate = speed;
+    applyPlaybackRate();
     if (wasPlaying) {
       void audio.play().catch(() => {
         // ignore autoplay restriction
