@@ -644,6 +644,8 @@ const PlayerPage = () => {
     }
     const wasPlaying = !audio.paused;
     audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + delta));
+    audio.playbackRate = speed;
+    audio.defaultPlaybackRate = speed;
     if (wasPlaying) {
       void audio.play().catch(() => {
         // ignore autoplay restriction
@@ -964,8 +966,11 @@ const PlayerPage = () => {
           onChange={(e) => handleSeek(Number(e.target.value))}
         />
         <div className="controls">
+          <button className="ghost" onClick={() => handleSkip(-30)}>
+            {"<<30"}
+          </button>
           <button className="ghost" onClick={() => handleSkip(-10)}>
-            10秒戻し
+            {"<<10"}
           </button>
           <button
             className="primary play-toggle"
@@ -976,8 +981,11 @@ const PlayerPage = () => {
           >
             <span className="play-icon">{playing ? "❚❚" : "▶"}</span>
           </button>
+          <button className="ghost" onClick={() => handleSkip(10)}>
+            {">>10"}
+          </button>
           <button className="ghost" onClick={() => handleSkip(30)}>
-            30秒送り
+            {">>30"}
           </button>
         </div>
         <div className="button-row">
@@ -1029,8 +1037,11 @@ const PlayerPage = () => {
             {formatTime(currentTime)} / {formatTime(duration)}
           </div>
           <div className="mini-row">
+            <button className="ghost small" onClick={() => handleSkip(-30)}>
+              {"<<30"}
+            </button>
             <button className="ghost small" onClick={() => handleSkip(-10)}>
-              10秒戻し
+              {"<<10"}
             </button>
             <button
               className="primary play-toggle"
@@ -1041,8 +1052,11 @@ const PlayerPage = () => {
             >
               <span className="play-icon">{playing ? "❚❚" : "▶"}</span>
             </button>
+            <button className="ghost small" onClick={() => handleSkip(10)}>
+              {">>10"}
+            </button>
             <button className="ghost small" onClick={() => handleSkip(30)}>
-              30秒送り
+              {">>30"}
             </button>
           </div>
           <div className="mini-row mini-row-secondary">
